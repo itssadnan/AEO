@@ -1,0 +1,809 @@
+{
+  "_protocol": [
+    "READ THIS FIRST, before writing or changing any code.",
+    "1. Read this file's `modules` array to find the module you're about to touch. Check `status` and `dependsOn` \u2014 do not start a module whose dependencies are not yet `done`.",
+    "2. Open progress/modules/<id>-<slug>.md for that module for full context: purpose, acceptance criteria, caching/security notes, and the decisions log.",
+    "3. Before marking a module `done`, verify every item in `definitionOfDone` below that applies to it, and every item in the module's own `acceptanceCriteria`.",
+    "4. When you finish a work session (even a partial one), update: status, filesTouched, decisionsLog (append, do not rewrite history), and lastUpdated/lastUpdatedBy in BOTH this JSON and the module's markdown file. Out-of-sync JSON/markdown is the one thing that breaks this system for the next LLM \u2014 keep them in lockstep.",
+    "5. If you get blocked, set status to 'blocked' and add a line to `blockers` explaining exactly what's needed to unblock \u2014 do not leave it silently stuck at 'in_progress'."
+  ],
+  "project": "AEO Visibility Platform",
+  "specDoc": "docs/spec/AEO_Visibility_Platform_Spec_v1.1.docx",
+  "conventionsDoc": "docs/CONVENTIONS.md",
+  "specVersion": "1.1",
+  "lastUpdated": "2026-07-23",
+  "statusValues": [
+    "not_started",
+    "in_progress",
+    "blocked",
+    "in_review",
+    "done"
+  ],
+  "definitionOfDone": [
+    {
+      "id": "functional",
+      "text": "Meets every item in this module's acceptance criteria"
+    },
+    {
+      "id": "types",
+      "text": "TypeScript strict mode passes, no `any` without a comment explaining why"
+    },
+    {
+      "id": "validation",
+      "text": "All external input (API body, webhook, AI-model JSON output) validated with a zod schema before use"
+    },
+    {
+      "id": "rls",
+      "text": "If this module touches a DB table: Row Level Security policy exists and has a test proving cross-tenant access is denied"
+    },
+    {
+      "id": "secrets",
+      "text": "No secret/key is imported into client-bundled code; server-only env vars are not prefixed NEXT_PUBLIC_"
+    },
+    {
+      "id": "caching",
+      "text": "Caching decision made explicitly (cached with stated TTL, or explicitly marked not-cached with a one-line reason) \u2014 never silently uncached by omission"
+    },
+    {
+      "id": "rate_limit",
+      "text": "If this module exposes a public/unauthenticated endpoint: IP rate limit + abuse guard (captcha/honeypot) is implemented"
+    },
+    {
+      "id": "errors",
+      "text": "Failure paths handled explicitly (API timeout, rate-limit response, malformed AI output) \u2014 no silent swallow"
+    },
+    {
+      "id": "tests",
+      "text": "At least one automated test covering the module's main success path and one failure path"
+    },
+    {
+      "id": "docs",
+      "text": "This module's tracker file updated: status, files list, decisions log, and any new caching/security notes"
+    }
+  ],
+  "phases": [
+    {
+      "id": "0",
+      "name": "Setup",
+      "status": "not_started"
+    },
+    {
+      "id": "1",
+      "name": "Core engine",
+      "status": "not_started"
+    },
+    {
+      "id": "2",
+      "name": "Scoring + NLP + Explanation Engine",
+      "status": "not_started"
+    },
+    {
+      "id": "3",
+      "name": "Audit + growth loop",
+      "status": "not_started"
+    },
+    {
+      "id": "4",
+      "name": "Billing + hardening",
+      "status": "not_started"
+    },
+    {
+      "id": "5",
+      "name": "Growth automation",
+      "status": "not_started"
+    },
+    {
+      "id": "6",
+      "name": "Phase-2 engines (revenue-funded)",
+      "status": "not_started"
+    }
+  ],
+  "modules": [
+    {
+      "id": "0.0",
+      "name": "Project Setup",
+      "phase": "0",
+      "specSection": "\u2014",
+      "status": "blocked",
+      "percentComplete": 20,
+      "dependsOn": [],
+      "blocks": [
+        "5.1"
+      ],
+      "owner": "unassigned",
+      "filesTouched": [
+        "app/ (full Next.js project scaffold)",
+        "app/src/modules/*/index.ts (11 module stubs)",
+        "app/src/lib/{ai-providers,cache,db,security}/index.ts",
+        "app/src/types/index.ts",
+        "app/tests/unit/sanity.test.ts",
+        "app/supabase/migrations/.gitkeep",
+        ".github/workflows/ci.yml",
+        ".github/dependabot.yml",
+        ".gitignore"
+      ],
+      "acceptanceCriteria": [
+        {
+          "text": "Monorepo created with the folder structure in docs/CONVENTIONS.md",
+          "done": true
+        },
+        {
+          "text": "Supabase project created, RLS enabled by default on the schema",
+          "done": false
+        },
+        {
+          "text": "Vercel project connected to the repo",
+          "done": false
+        },
+        {
+          "text": "Stripe test-mode account created",
+          "done": false
+        },
+        {
+          "text": "Gemini + NVIDIA NIM API keys obtained and stored as server-only env vars",
+          "done": false
+        },
+        {
+          "text": "Domain purchased/pointed (or a working *.vercel.app placeholder)",
+          "done": false
+        }
+      ],
+      "cachingNotes": "N/A at this stage.",
+      "securityNotes": "Establish the env var naming convention (server-only vs NEXT_PUBLIC_) here, on day one, so no module after this one gets it wrong.",
+      "lastUpdated": "2026-07-23",
+      "lastUpdatedBy": "Claude (scaffold session)",
+      "decisionsLog": [
+        "2026-07-23 — Scaffolded app/ per docs/CONVENTIONS.md Section 1 (Next.js 16.2.11, TS strict, Tailwind, module/lib/type stubs, tests/, supabase/migrations/, .env.example, ESLint+Prettier, CI workflow, Dependabot). Verified: tsc --noEmit, eslint, prettier --check, and the test suite all pass. See progress/modules/0.0-project-setup.md for full detail.",
+        "2026-07-23 — Used Node's built-in test runner instead of Vitest: Vitest crashed with a native Bus error tied to its worker pool, reproduced across pool modes and versions, isolated to this build shell. See module decisions log.",
+        "2026-07-23 — next build could not be verified to completion in this sandbox (same worker-process SIGBUS, reproduced on Next 15 and 16 — not version-specific); dev server/typecheck/lint/tests all pass. .github/workflows/ci.yml is the real build gate once pushed. See module decisions log.",
+        "2026-07-23 — git init hit a stuck .git/index.lock from a mounted-drive filesystem limitation; user declined deleting the lock file, so git init/commit is deferred to the user's own machine. See module decisions log."
+      ],
+      "blockers": [
+        "Supabase project not yet created (no MCP connector available)",
+        "Vercel project not yet connected (no MCP connector available)",
+        "Razorpay test-mode account not yet created (no MCP connector available)",
+        "Gemini + NVIDIA NIM API keys not yet obtained",
+        "Domain not yet purchased/pointed (vercel.app placeholder acceptable for now)",
+        "Local git repo not yet initialized on a machine where it will persist"
+      ],
+      "detailFile": "progress/modules/0.0-project-setup.md"
+    },
+    {
+      "id": "5.1",
+      "name": "Auth & Account",
+      "phase": "1",
+      "specSection": "5.1",
+      "status": "not_started",
+      "percentComplete": 0,
+      "dependsOn": [
+        "0.0"
+      ],
+      "blocks": [
+        "5.2",
+        "5.9"
+      ],
+      "owner": "unassigned",
+      "filesTouched": [],
+      "acceptanceCriteria": [
+        {
+          "text": "Email + Google OAuth signup/login working",
+          "done": false
+        },
+        {
+          "text": "Workspace (org) model: a workspace can contain multiple brands",
+          "done": false
+        },
+        {
+          "text": "Roles implemented: Owner, Member, Viewer",
+          "done": false
+        },
+        {
+          "text": "RLS policies scoped to workspace membership on every table created from this point on",
+          "done": false
+        },
+        {
+          "text": "Email normalized before any uniqueness check (lowercase, strip +tag suffixes, strip dots for Gmail-style addresses) \u2014 both raw and normalized email stored",
+          "done": false
+        },
+        {
+          "text": "At most one workspace on the Free plan per normalized email as Owner, enforced at workspace-creation time (not just signup, since a paid workspace can later downgrade to free); attempting a second shows a clear message (\"this email already has a free workspace \u2014 upgrade it or log in\"), never a silent block",
+          "done": false
+        },
+        {
+          "text": "This limit applies to Free-plan ownership only \u2014 being invited as Member/Viewer to any number of other workspaces (the agency use case) is unrestricted",
+          "done": false
+        },
+        {
+          "text": "Signup endpoint rate-limited by IP as a second layer against scripted mass signups, same pattern as the free-check tool (5.11)",
+          "done": false
+        }
+      ],
+      "cachingNotes": "Session/JWT caching handled by the Supabase client SDK \u2014 no custom caching needed here.",
+      "securityNotes": "This module sets the RLS pattern every later module must copy. Write the cross-tenant-denied test here first, reuse it as a template.",
+      "lastUpdated": "2026-07-23",
+      "lastUpdatedBy": null,
+      "decisionsLog": [
+        {
+          "date": "2026-07-23",
+          "text": "One Free-plan workspace per person, not two, enforced via normalized-email uniqueness (not raw-string matching, which is trivially bypassed with +tag/dot email aliases) plus IP-based signup throttling. Deliberately did not add phone/card verification to close the remaining \"two different real email addresses\" loophole \u2014 that friction isn't justified against a threat this bounded, since the Free plan itself is capped at 5 prompts/weekly checks regardless. Rule scoped to Free-plan ownership only; workspace membership (agency clients invited as Viewer) is unrestricted."
+        }
+      ],
+      "blockers": [],
+      "detailFile": "progress/modules/5.1-auth-and-account.md"
+    },
+    {
+      "id": "5.2",
+      "name": "Brand / Prompt Configuration",
+      "phase": "1",
+      "specSection": "5.2",
+      "status": "not_started",
+      "percentComplete": 0,
+      "dependsOn": [
+        "5.1"
+      ],
+      "blocks": [
+        "5.3"
+      ],
+      "owner": "unassigned",
+      "filesTouched": [],
+      "acceptanceCriteria": [
+        {
+          "text": "Manual entry: brand name, website, competitor names",
+          "done": false
+        },
+        {
+          "text": "AI-assisted prompt suggestion: one Gemini call proposes 20-30 prompts from the brand's site/industry, editable before saving",
+          "done": false
+        },
+        {
+          "text": "Plan-tier prompt-count limits enforced server-side (not just hidden in the UI)",
+          "done": false
+        }
+      ],
+      "cachingNotes": "Not cached \u2014 this is low-frequency, user-driven write traffic.",
+      "securityNotes": "Treat all user-entered prompt/brand text as untrusted; validate with zod and never interpolate raw into a system-level instruction to any AI call.",
+      "lastUpdated": null,
+      "lastUpdatedBy": null,
+      "decisionsLog": [],
+      "blockers": [],
+      "detailFile": "progress/modules/5.2-brand-prompt-configuration.md"
+    },
+    {
+      "id": "5.3",
+      "name": "Engine Query Engine",
+      "phase": "1",
+      "specSection": "5.3",
+      "status": "not_started",
+      "percentComplete": 0,
+      "dependsOn": [
+        "5.2"
+      ],
+      "blocks": [
+        "5.4",
+        "5.6",
+        "5.10",
+        "5.11"
+      ],
+      "owner": "unassigned",
+      "filesTouched": [],
+      "acceptanceCriteria": [
+        {
+          "text": "AIProvider interface defined; GeminiProvider is the only implementation for now",
+          "done": false
+        },
+        {
+          "text": "ai_task_configs table + resolveTaskModel(taskKey, workspaceId) resolver owned by this module (global default row + per-workspace override, enabled flag, admin-only RLS \u2014 see ERD); no other module hardcodes a provider or model string",
+          "done": false
+        },
+        {
+          "text": "Queue-based worker pulls due (brand, prompt) pairs and calls Gemini with grounding enabled, resolving its model via resolveTaskModel(\"grounded_search\", workspaceId)",
+          "done": false
+        },
+        {
+          "text": "Migration seeds global-default rows for all five task keys with the values from spec Section 6",
+          "done": false
+        },
+        {
+          "text": "Full raw answer + citation list stored per check",
+          "done": false
+        },
+        {
+          "text": "Throttled to Gemini's current free-tier RPM/RPD caps; checks staggered across the week, not fired all at once",
+          "done": false
+        },
+        {
+          "text": "Retries with backoff on rate-limit errors; failed checks are requeued, never silently dropped",
+          "done": false
+        },
+        {
+          "text": "Key pool (primary/secondary/tertiary) implemented for GeminiProvider and NvidiaNimProvider per docs/CONVENTIONS.md \u2014 429 soft-fails to the next key, 401/403 marks that key dead + alerts the Admin Console, never a silent drop",
+          "done": false
+        },
+        {
+          "text": "Falls back to the standard retry/requeue path if every key in a provider's pool is dead or exhausted",
+          "done": false
+        },
+        {
+          "text": "Pool supports failoverMode \"shared\" (default; secondary/tertiary absorb 429s) vs \"emergency-only\" (secondary/tertiary called only on hard failures \u2014 401/403/5xx/timeout, never a plain 429); switching is a one-flag change, not a redeploy of logic",
+          "done": false
+        },
+        {
+          "text": "Admin Console (5.10) surfaces which failoverMode is active per provider and reminds the admin to flip it the moment primary is upgraded (billing enabled for Gemini, or the free 200 RPM increase for NVIDIA NIM)",
+          "done": false
+        }
+      ],
+      "cachingNotes": "Guard against redundant calls: before enqueueing a check, verify last_checked_at for that (brand, prompt) pair is older than the plan's check interval \u2014 prevents burning shared free quota on duplicate/rapid re-triggers. This is a Postgres timestamp check, not a separate cache service.",
+      "securityNotes": "Gemini key is server-only, called exclusively from this worker, never from a client-reachable route. Log request counts, never prompt/answer content, in any cross-tenant-visible log.",
+      "lastUpdated": "2026-07-23",
+      "lastUpdatedBy": null,
+      "decisionsLog": [
+        {
+          "date": "2026-07-23",
+          "text": "Split vendor-swapping (AIProvider interface) from model-per-task swapping (new AI_TASK_CONFIG map) \u2014 see docs/CONVENTIONS.md Section 5."
+        },
+        {
+          "date": "2026-07-23",
+          "text": "Superseded the static-file decision: moved task-level AI config to a DB table (ai_task_configs) with global default + per-workspace override rows, to support Admin Console enable/disable per flow and per-account model experiments. API keys remain env-only."
+        },
+        {
+          "date": "2026-07-23",
+          "text": "Multi-key pool (primary/secondary/tertiary per provider, free-tier period only) using team members' own accounts. Risk explicitly flagged before deciding: per-account rate limits mean this only works with separate accounts, which both providers' abuse-monitoring treats as circumvention; detection is behavioral (same backend/product) so likely correlates and suspends all three together regardless of the accounts being real people; a suspension affects the owner's personal use of that provider too. Decided to proceed anyway, conditioned on every account owner being told the risk to their own account, and on loud (not silent) dead-key alerting via the Admin Console. Scoped to disappear once the product is on a paid tier."
+        },
+        {
+          "date": "2026-07-23",
+          "text": "Refinement: two failover modes tied to the paid-tier upgrade trigger. Once primary is upgraded (paid Gemini / free RPM increase for NVIDIA NIM), it absorbs nearly all traffic, so secondary/tertiary (teammate-owned accounts) switch from ordinary rate-limit relief to hard-failure-only fallback. This meaningfully reduces but does not fully remove the risk accepted in the entry above. Target end state once revenue exists: replace teammate-owned keys with a second founder-controlled paid key, fully retiring the third-party risk."
+        }
+      ],
+      "blockers": [],
+      "detailFile": "progress/modules/5.3-engine-query-engine.md"
+    },
+    {
+      "id": "5.4",
+      "name": "NLP Extraction & Structuring",
+      "phase": "2",
+      "specSection": "5.4",
+      "status": "not_started",
+      "percentComplete": 0,
+      "dependsOn": [
+        "5.3"
+      ],
+      "blocks": [
+        "5.5"
+      ],
+      "owner": "unassigned",
+      "filesTouched": [],
+      "acceptanceCriteria": [
+        {
+          "text": "Model resolved via resolveTaskModel(\"extraction\", workspaceId) against the ai_task_configs table (owned by 5.3) \u2014 this module does not hardcode \"nvidia-nim\" or a model string anywhere in its own code",
+          "done": false
+        },
+        {
+          "text": "NVIDIA NIM call extracts: brand_mentioned, position, reasoning, sentiment, competitor_names_found, cited_domains, cited_domain_types",
+          "done": false
+        },
+        {
+          "text": "Output validated against a strict zod schema before being written to the DB",
+          "done": false
+        },
+        {
+          "text": "Runs as a step separate from the Gemini call \u2014 does not consume Gemini's grounding quota",
+          "done": false
+        }
+      ],
+      "cachingNotes": "Not cached \u2014 each raw answer is unique per check, so there's nothing to reuse; kept cheap by using the free tier's generous RPM instead.",
+      "securityNotes": "Never trust the model's JSON output as pre-validated; a malformed or off-schema response must be rejected and logged, not written through.",
+      "lastUpdated": "2026-07-23",
+      "lastUpdatedBy": null,
+      "decisionsLog": [
+        {
+          "date": "2026-07-23",
+          "text": "Model choice now sourced from shared AI_TASK_CONFIG (task: extraction) instead of decided locally."
+        },
+        {
+          "date": "2026-07-23",
+          "text": "Updated to reference the DB-backed ai_task_configs table (not a code file) \u2014 allows a custom-plan customer to be pointed at a different model via admin-set override, no code change."
+        }
+      ],
+      "blockers": [],
+      "detailFile": "progress/modules/5.4-nlp-extraction-and-structuring.md"
+    },
+    {
+      "id": "5.5",
+      "name": "Visibility Scoring, Share-of-Voice & Explanation Engine",
+      "phase": "2",
+      "specSection": "5.5",
+      "status": "not_started",
+      "percentComplete": 0,
+      "dependsOn": [
+        "5.4"
+      ],
+      "blocks": [
+        "5.8",
+        "5.12"
+      ],
+      "owner": "unassigned",
+      "filesTouched": [],
+      "acceptanceCriteria": [
+        {
+          "text": "Visibility Score (0-100), raw mention count, and average rank computed and stored",
+          "done": false
+        },
+        {
+          "text": "Share-of-Voice vs named competitors, trended weekly",
+          "done": false
+        },
+        {
+          "text": "Source Influence report (citation domains by type) computed",
+          "done": false
+        },
+        {
+          "text": "Explanation Engine: percentage breakdown of why a competitor is cited more, via one NVIDIA NIM call per brand per check cycle, model resolved via resolveTaskModel(\"explanation_generation\", workspaceId) against ai_task_configs \u2014 not hardcoded in this module",
+          "done": false
+        },
+        {
+          "text": "Opportunity Finder: gap list of cited source types the brand has zero presence on",
+          "done": false
+        },
+        {
+          "text": "Recommended actions are confidence-tagged (High/Medium/Low), never stated as flat guarantees",
+          "done": false
+        }
+      ],
+      "cachingNotes": "Aggregates (score, share-of-voice, explanation) are recomputed only when a new check result lands for that brand \u2014 cache the computed result and invalidate on new data, rather than recomputing on every dashboard load.",
+      "securityNotes": "Recommendation text is model-generated \u2014 label it as guidance in the UI, never as a guarantee, to avoid overstating certainty to customers.",
+      "lastUpdated": "2026-07-23",
+      "lastUpdatedBy": null,
+      "decisionsLog": [
+        {
+          "date": "2026-07-23",
+          "text": "Explanation-generation model choice now sourced from shared AI_TASK_CONFIG (task: explanation_generation) instead of decided locally."
+        },
+        {
+          "date": "2026-07-23",
+          "text": "Updated to reference the DB-backed ai_task_configs table (not a code file)."
+        }
+      ],
+      "blockers": [],
+      "detailFile": "progress/modules/5.5-visibility-scoring-share-of-voice-and-explanation-engine.md"
+    },
+    {
+      "id": "5.6",
+      "name": "Dashboard / Frontend",
+      "phase": "1-3",
+      "specSection": "5.6",
+      "status": "not_started",
+      "percentComplete": 0,
+      "dependsOn": [
+        "5.3"
+      ],
+      "blocks": [],
+      "owner": "unassigned",
+      "filesTouched": [],
+      "acceptanceCriteria": [
+        {
+          "text": "Overview: Visibility Score, raw mention count, average rank, Share-of-Voice trend",
+          "done": false
+        },
+        {
+          "text": "Prompt Explorer: per-prompt drill-down + browsable AI Response History timeline",
+          "done": false
+        },
+        {
+          "text": "Competitor Explorer: Share-of-Voice + Explanation Engine + Opportunity Finder panels",
+          "done": false
+        },
+        {
+          "text": "Reports: crawl-readiness checklist + exportable/white-label summaries (Agency plan)",
+          "done": false
+        },
+        {
+          "text": "Settings: brand/prompt config, team, billing portal link",
+          "done": false
+        },
+        {
+          "text": "Every result explicitly labeled by engine (\"Gemini Visibility\") with a one-click \"How we calculated this\" expansion",
+          "done": false
+        }
+      ],
+      "cachingNotes": "Use Next.js data cache with tag-based revalidation, invalidated when a new check result lands for that brand \u2014 avoids recomputing/refetching on every page view between check cycles.",
+      "securityNotes": "CSRF protection on forms; all AI-sourced text (answers, explanations) rendered via safe text components, never dangerouslySetInnerHTML \u2014 it is untrusted third-party content.",
+      "lastUpdated": null,
+      "lastUpdatedBy": null,
+      "decisionsLog": [],
+      "blockers": [],
+      "detailFile": "progress/modules/5.6-dashboard-frontend.md"
+    },
+    {
+      "id": "5.7",
+      "name": "Crawl-Readiness Audit",
+      "phase": "3",
+      "specSection": "5.7",
+      "status": "not_started",
+      "percentComplete": 0,
+      "dependsOn": [
+        "0.0"
+      ],
+      "blocks": [
+        "5.11"
+      ],
+      "owner": "unassigned",
+      "filesTouched": [],
+      "acceptanceCriteria": [
+        {
+          "text": "Fetches and parses robots.txt for GPTBot/PerplexityBot/ClaudeBot/Google-Extended/CCBot rules",
+          "done": false
+        },
+        {
+          "text": "Checks for llms.txt (flagged as optional/experimental in the UI copy \u2014 no overclaiming its impact)",
+          "done": false
+        },
+        {
+          "text": "Checks for basic schema.org presence and heading structure",
+          "done": false
+        },
+        {
+          "text": "Outputs a plain checklist with fix instructions",
+          "done": false
+        }
+      ],
+      "cachingNotes": "Cache per-domain audit result with a 24h TTL \u2014 a site's robots.txt/schema doesn't change minute to minute, no need to refetch on every dashboard load.",
+      "securityNotes": "Identify your own crawler with a clear user-agent string; respect standard fetch etiquette when the target isn't the customer's own domain.",
+      "lastUpdated": null,
+      "lastUpdatedBy": null,
+      "decisionsLog": [],
+      "blockers": [],
+      "detailFile": "progress/modules/5.7-crawl-readiness-audit.md"
+    },
+    {
+      "id": "5.8",
+      "name": "Alerting & Reporting",
+      "phase": "3",
+      "specSection": "5.8",
+      "status": "not_started",
+      "percentComplete": 0,
+      "dependsOn": [
+        "5.5"
+      ],
+      "blocks": [],
+      "owner": "unassigned",
+      "filesTouched": [],
+      "acceptanceCriteria": [
+        {
+          "text": "Weekly digest: score change, new/lost mentions, new crawl issues",
+          "done": false
+        },
+        {
+          "text": "Threshold alert: competitor newly cited where customer wasn't (Growth+ plans)",
+          "done": false
+        }
+      ],
+      "cachingNotes": "N/A \u2014 each digest is generated once per send, inherently non-repeated.",
+      "securityNotes": "SPF/DKIM/DMARC configured on the sending domain before the first real send.",
+      "lastUpdated": null,
+      "lastUpdatedBy": null,
+      "decisionsLog": [],
+      "blockers": [],
+      "detailFile": "progress/modules/5.8-alerting-and-reporting.md"
+    },
+    {
+      "id": "5.9",
+      "name": "Billing & Subscription",
+      "phase": "4",
+      "specSection": "5.9",
+      "status": "not_started",
+      "percentComplete": 0,
+      "dependsOn": [
+        "5.1"
+      ],
+      "blocks": [],
+      "owner": "unassigned",
+      "filesTouched": [],
+      "acceptanceCriteria": [
+        {
+          "text": "Stripe Checkout for signup, Customer Portal for self-serve plan changes/cancellation",
+          "done": false
+        },
+        {
+          "text": "Webhook listener updates plan tier and enforced limits in the DB",
+          "done": false
+        },
+        {
+          "text": "Prompt-count/frequency limits enforced in 5.2 and 5.3, not just displayed in the UI",
+          "done": false
+        }
+      ],
+      "cachingNotes": "Not cached \u2014 billing state must always read as current, never stale.",
+      "securityNotes": "Every Stripe webhook signature verified (constant-time compare) before the payload is trusted; unverified webhooks rejected outright.",
+      "lastUpdated": null,
+      "lastUpdatedBy": null,
+      "decisionsLog": [],
+      "blockers": [],
+      "detailFile": "progress/modules/5.9-billing-and-subscription.md"
+    },
+    {
+      "id": "5.10",
+      "name": "Admin / Ops Console",
+      "phase": "4",
+      "specSection": "5.10",
+      "status": "not_started",
+      "percentComplete": 0,
+      "dependsOn": [
+        "5.3"
+      ],
+      "blocks": [],
+      "owner": "unassigned",
+      "filesTouched": [],
+      "acceptanceCriteria": [
+        {
+          "text": "Live Gemini + NVIDIA NIM quota consumption view, broken down per key in the pool (primary/secondary/tertiary), not just per provider",
+          "done": false
+        },
+        {
+          "text": "Key-pool health view: which keys are alive vs. marked dead, when a key died, and a manual clear-dead-flag action",
+          "done": false
+        },
+        {
+          "text": "A key transitioning to dead (401/403) fires an immediate alert, not just a log line",
+          "done": false
+        },
+        {
+          "text": "Displays current failoverMode (\"shared\" vs \"emergency-only\") per provider, with a visible reminder to switch to emergency-only the moment primary is upgraded",
+          "done": false
+        },
+        {
+          "text": "Error/failure log for failed checks",
+          "done": false
+        },
+        {
+          "text": "Basic churn signal: customers inactive 2+ weeks",
+          "done": false
+        },
+        {
+          "text": "AI task config view: list every task key's current global-default (provider, model, enabled) from ai_task_configs, editable inline",
+          "done": false
+        },
+        {
+          "text": "Enable/disable a model for a task globally (flips enabled on the global-default row)",
+          "done": false
+        },
+        {
+          "text": "Per-workspace override: search a workspace, add/edit/remove its override row for any task key, without touching the global default",
+          "done": false
+        },
+        {
+          "text": "Every write to ai_task_configs records updated_by + updated_at",
+          "done": false
+        }
+      ],
+      "cachingNotes": "Short TTL (e.g. 60s) on the quota-usage view is fine \u2014 it's an internal dashboard, not billing-critical, so a slightly stale read is an acceptable tradeoff for lower DB load.",
+      "securityNotes": "Gate at the server/API layer by role check, not just by hiding a frontend link.",
+      "lastUpdated": "2026-07-23",
+      "lastUpdatedBy": null,
+      "decisionsLog": [
+        {
+          "date": "2026-07-23",
+          "text": "Scope expanded to own the admin UI for ai_task_configs (global enable/disable + per-workspace override management for model experiments) \u2014 one small screen, not a new module."
+        },
+        {
+          "date": "2026-07-23",
+          "text": "Scope further expanded to surface the multi-key failover pool (5.3) \u2014 per-key health + immediate alert on a key dying. Required condition of accepting the key-pool risk, not optional."
+        }
+      ],
+      "blockers": [],
+      "detailFile": "progress/modules/5.10-admin-ops-console.md"
+    },
+    {
+      "id": "5.11",
+      "name": "Public Free-Check Lead Magnet",
+      "phase": "3",
+      "specSection": "5.11",
+      "status": "not_started",
+      "percentComplete": 0,
+      "dependsOn": [
+        "5.3",
+        "5.7"
+      ],
+      "blocks": [
+        "5.12"
+      ],
+      "owner": "unassigned",
+      "filesTouched": [],
+      "acceptanceCriteria": [
+        {
+          "text": "Public endpoint runs one prompt through the Engine Query Engine and returns a shareable result",
+          "done": false
+        },
+        {
+          "text": "Soft paywall shown after the result",
+          "done": false
+        }
+      ],
+      "cachingNotes": "Highest-priority cache in the product: identical (brand, prompt) free-check results cached for 24h, keyed by a hash of normalized input \u2014 this is the single biggest defense against a public endpoint draining the shared free Gemini quota.",
+      "securityNotes": "IP rate limit + CAPTCHA/honeypot \u2014 this is the most exposed, unauthenticated surface in the whole system and must not ship without both controls in place.",
+      "lastUpdated": null,
+      "lastUpdatedBy": null,
+      "decisionsLog": [],
+      "blockers": [],
+      "detailFile": "progress/modules/5.11-public-free-check-lead-magnet.md"
+    },
+    {
+      "id": "5.12",
+      "name": "Growth Automation Pipeline",
+      "phase": "5",
+      "specSection": "5.12",
+      "status": "not_started",
+      "percentComplete": 0,
+      "dependsOn": [
+        "5.11",
+        "5.5"
+      ],
+      "blocks": [],
+      "owner": "unassigned",
+      "filesTouched": [],
+      "acceptanceCriteria": [
+        {
+          "text": "Lead list sourced from a free-tier source, filtered to ICP",
+          "done": false
+        },
+        {
+          "text": "Each lead's brand auto-run through the Engine Query Engine",
+          "done": false
+        },
+        {
+          "text": "Personalized email draft generated from the real result",
+          "done": false
+        },
+        {
+          "text": "Drafts pushed to a cold-email tool for sequencing",
+          "done": false
+        }
+      ],
+      "cachingNotes": "Reuses the 5.11 free-check cache where a lead's brand was already checked recently \u2014 avoids double-spending quota on the same company.",
+      "securityNotes": "Scope data access to public company info only; comply with CAN-SPAM/GDPR unsubscribe requirements from the first send.",
+      "lastUpdated": null,
+      "lastUpdatedBy": null,
+      "decisionsLog": [],
+      "blockers": [],
+      "detailFile": "progress/modules/5.12-growth-automation-pipeline.md"
+    },
+    {
+      "id": "6.0",
+      "name": "Phase-2 AI Engines (ChatGPT / Perplexity / Copilot)",
+      "phase": "6",
+      "specSection": "6.3",
+      "status": "not_started",
+      "percentComplete": 0,
+      "dependsOn": [
+        "5.3"
+      ],
+      "blocks": [],
+      "owner": "unassigned",
+      "filesTouched": [],
+      "acceptanceCriteria": [
+        {
+          "text": "OpenAIProvider implemented (web-search tool), gated behind a paid add-on",
+          "done": false
+        },
+        {
+          "text": "PerplexityProvider implemented (Sonar API)",
+          "done": false
+        },
+        {
+          "text": "CopilotProvider implemented via the customer's own Bing Webmaster OAuth (official, free)",
+          "done": false
+        },
+        {
+          "text": "UI clearly labels each engine by name \u2014 never implies ChatGPT when the data came from Gemini",
+          "done": false
+        }
+      ],
+      "cachingNotes": "Same TTL/guard pattern as 5.3 and 5.11, per provider \u2014 these are paid calls, so the redundant-call guard matters even more here than on the free tier.",
+      "securityNotes": "Never scrape a competitor AI product's consumer web interface under any circumstance \u2014 only the official APIs listed here.",
+      "lastUpdated": null,
+      "lastUpdatedBy": null,
+      "decisionsLog": [],
+      "blockers": [],
+      "detailFile": "progress/modules/6.0-phase-2-ai-engines-chatgpt-perplexity-copilot.md"
+    }
+  ]
+}

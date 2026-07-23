@@ -1,0 +1,11 @@
+# Node / Next.js app (see app/.gitignore for the authoritative app-level rules; this
+# root .gitignore covers the repo root and anything git would otherwise see at top level)
+app/node_modules/
+app/.next/
+app/out/
+app/*.tsbuildinfo
+app/next-env.d.ts
+app/.env*
+!app/.env.example
+
+.DS_Store
