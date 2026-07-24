@@ -172,8 +172,8 @@
       "name": "Auth & Account",
       "phase": "1",
       "specSection": "5.1",
-      "status": "in_review",
-      "percentComplete": 98,
+      "status": "done",
+      "percentComplete": 100,
       "dependsOn": [
         "0.0"
       ],
@@ -204,8 +204,8 @@
       ],
       "acceptanceCriteria": [
         {
-          "text": "Email signup/login working",
-          "done": false
+          "text": "Email signup/login working -- code verified correct and secure (signup, duplicate-email pre-check, invalid-credentials rejection, unconfirmed-account rejection all confirmed via direct DB/log checks 2026-07-24). Checked off despite no literal /dashboard-landing screenshot, since the only blocker to that was the 'Confirm email' dashboard setting -- descoped by user decision, see LEFT_FOR_FINAL_TOUCHES.md.",
+          "done": true
         },
         {
           "text": "Google OAuth signup/login working -- descoped from this module's done gate 2026-07-24 by user decision; tracked as a standalone item in progress/LEFT_FOR_FINAL_TOUCHES.md instead. App code side is complete and correct; the live Supabase project currently has the provider disabled server-side, fixable only via the dashboard.",
@@ -247,7 +247,7 @@
       "cachingNotes": "Session/JWT caching handled by the Supabase client SDK — no custom caching needed here.",
       "securityNotes": "This module sets the RLS pattern every later module must copy. Write the cross-tenant-denied test here first, reuse it as a template.",
       "lastUpdated": "2026-07-24",
-      "lastUpdatedBy": "Claude (retried fresh signup/sign-in; all code paths proven correct, but 'Confirm email' is on, blocking a literal /dashboard capture)",
+      "lastUpdatedBy": "Claude (marked done per user decision; two dashboard-config gaps tracked in LEFT_FOR_FINAL_TOUCHES.md, non-blocking)",
       "decisionsLog": [
         {
           "date": "2026-07-23",
@@ -332,11 +332,14 @@
         {
           "date": "2026-07-24",
           "text": "(Same day, retry.) Retried fresh signup once the rate-limit window had likely cleared. First attempt hit a transient Supabase/Cloudflare 525 SSL handshake failure (confirmed via Vercel runtime logs; confirmed cleared within ~1 min via direct curl to /auth/v1/health). Second attempt succeeded cleanly: auth.users + user_profiles rows created correctly (verified via execute_sql), normalize_email() correctly left a non-Gmail address untouched. App correctly took the unconfirmed-session branch because 'Confirm email' turns out to be ON right now, contradicting the LEFT_FOR_FINAL_TOUCHES.md note that it was disabled -- this also retroactively explains the earlier rate-limit 429s (real confirmation emails were being sent). Signed in with those exact known-correct credentials: correctly rejected (GoTrue won't issue a session for an unconfirmed account; app collapses this into the same generic enumeration-safe message by design). Net: every email/password code path is now proven correct and secure via direct verification; the only remaining gap is a literal /dashboard screenshot, blocked by the same class of dashboard-config issue as Google OAuth. Did not attempt to fix via SQL (auth schema writes are out of scope for an LLM, per this module's own established precedent)."
+        },
+        {
+          "date": "2026-07-24",
+          "text": "(Same day, closing.) User confirmed: track both open dashboard-config gaps (Google OAuth, 'Confirm email') in the pending/final-touches tracker and close this module out. Flipped status to done, percentComplete to 100. Left both acceptance-criteria lines about them explicitly marked with notes explaining the deviation from progress.json's own done-gate protocol is a deliberate, documented user decision, not an oversight. User also asked about bypassing real authentication during further development and identifying users by email instead -- clarifying the intent (dev/test convenience only vs. an actual product-level auth change) before writing any code, since RLS depends on real Supabase session identity and a naive email-only trust model would be a genuine security regression."
         }
       ],
       "blockers": [
-        "\"Confirm email\" is active on the live Supabase project, contradicting the LEFT_FOR_FINAL_TOUCHES.md note that the user disabled it -- same category as the Google OAuth gap (dashboard setting not matching documentation, not an app bug). Every code path around it has been proven correct and secure; only a literal /dashboard landing hasn't been captured. Awaiting user decision on whether to descope this too, same as OAuth.",
-        "Google OAuth is not enabled on the live Supabase project -- descoped from this module's done gate 2026-07-24 by user decision, now tracked standalone in progress/LEFT_FOR_FINAL_TOUCHES.md. Not blocking 5.1 or 5.2 anymore."
+        "No open blockers for this module. Two Supabase dashboard-config gaps (Google OAuth disabled; \"Confirm email\" active, contradicting an earlier note) remain open but are intentionally non-blocking by explicit user decision 2026-07-24 -- both tracked standalone in progress/LEFT_FOR_FINAL_TOUCHES.md, not silently dropped."
       ],
       "detailFile": "progress/modules/5.1-auth-and-account.md"
     },
