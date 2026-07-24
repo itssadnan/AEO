@@ -67,7 +67,8 @@ Concrete rules, by module:
 
 | What | Where | Rule |
 |---|---|---|
-| Gemini/AI-provider grounded checks | 5.3, 6.0 | Never re-run the same (brand, prompt) pair faster than the plan's check interval — a `last_checked_at` guard, not a full cache layer |
+| Gemini/AI-provider grounded checks — paid plans | 5.3, 6.0 | Never re-run the same (brand, prompt) pair faster than the plan's check interval — a `last_checked_at` guard, not a full cache layer |
+| Gemini/AI-provider grounded checks — Free plan | 5.3, 5.9 | No time-based guard — Free plan has no recurring cadence. Gated instead by the lifetime `workspaces.experiments_used` counter (cap: 3, never resets); a 4th on-demand attempt is blocked outright |
 | Public free-check results | 5.11 | Cache identical (brand, prompt) results for 24h, keyed by a hash of normalized input — this is the highest-priority cache in the system, since it's the one endpoint an anonymous visitor can hit repeatedly |
 | Dashboard aggregates (score, share-of-voice, explanation) | 5.5, 5.6 | Computed once when a new check result lands, cached, invalidated by tag when new data arrives — never recomputed on every page view |
 | Crawl-readiness audit | 5.7 | Cache per-domain result, 24h TTL |

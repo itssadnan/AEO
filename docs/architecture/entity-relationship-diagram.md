@@ -23,7 +23,8 @@ erDiagram
     uuid id PK
     string name
     string plan_tier
-    string stripe_customer_id
+    string razorpay_customer_id
+    int experiments_used "lifetime counter, Free plan only; capped at 3 in application logic, never reset"
   }
   WORKSPACE_MEMBERS {
     uuid id PK
@@ -79,7 +80,7 @@ erDiagram
   SUBSCRIPTIONS {
     uuid id PK
     uuid workspace_id FK
-    string stripe_subscription_id
+    string razorpay_subscription_id
     string status
   }
   USAGE_COUNTERS {
@@ -143,5 +144,7 @@ Columns omitted from the diagram above for readability (every table also has `cr
 **Row Level Security.** Every table below `brands` (competitors, prompts, crawl_audits, alert_logs, visibility_snapshots) is scoped by joining up to `brands.workspace_id`, matching `docs/CONVENTIONS.md` Section 5. `check_runs` is one join deeper (check_runs → prompts → brands → workspace), which is the one place worth denormalizing: add a `workspace_id` column directly onto `check_runs` (kept in sync via a trigger or set at insert time from the parent prompt), so its RLS policy is a single equality check instead of a two-level join on every one of the highest-volume table's reads. `free_check_cache` and `leads` have no RLS — they hold no tenant data.
 
 **Caching.** `free_check_cache` implements the 24-hour public free-check cache from `docs/CONVENTIONS.md` Section 4 — enforced by checking `created_at > now() - interval '24 hours'` in application code before a cache hit is used, not by a database TTL feature (Supabase's free tier has none). A `unique index` on `input_hash` prevents duplicate concurrent writes for the same (brand, prompt) pair.
+
+**Why `experiments_used` is a plain counter on `workspaces`, not a row in `usage_counters`.** `usage_counters` is inherently period-shaped (`period`, `checks_used`, `prompts_used`) — it exists to support billing-cycle resets for paid plans. The Free plan's 3-check allowance is a one-time lifetime cap with no period to reset against, so it lives as a single column on the workspace itself instead of forcing a periodic table to represent a non-periodic value. The cap (3) is enforced in application logic (5.3, 5.9), not a second DB column — it's a fixed product rule, not a per-workspace variable.
 
 **What's deliberately not here.** No `notifications` table (5.8 sends email directly and logs to `alert_logs`, it doesn't need a queue at this scale). No per-engine tables for the Phase-2 providers (6.0) — `check_runs.provider` is already a free-text column, so adding OpenAI/Perplexity/Copilot is a data change, not a schema change. No soft-delete columns anywhere yet — add them when there's an actual customer-deletion flow to support, not before.

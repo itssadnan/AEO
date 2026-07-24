@@ -1,17 +1,17 @@
 {
   "_protocol": [
     "READ THIS FIRST, before writing or changing any code.",
-    "1. Read this file's `modules` array to find the module you're about to touch. Check `status` and `dependsOn` \u2014 do not start a module whose dependencies are not yet `done`.",
+    "1. Read this file's `modules` array to find the module you're about to touch. Check `status` and `dependsOn` — do not start a module whose dependencies are not yet `done`.",
     "2. Open progress/modules/<id>-<slug>.md for that module for full context: purpose, acceptance criteria, caching/security notes, and the decisions log.",
     "3. Before marking a module `done`, verify every item in `definitionOfDone` below that applies to it, and every item in the module's own `acceptanceCriteria`.",
-    "4. When you finish a work session (even a partial one), update: status, filesTouched, decisionsLog (append, do not rewrite history), and lastUpdated/lastUpdatedBy in BOTH this JSON and the module's markdown file. Out-of-sync JSON/markdown is the one thing that breaks this system for the next LLM \u2014 keep them in lockstep.",
-    "5. If you get blocked, set status to 'blocked' and add a line to `blockers` explaining exactly what's needed to unblock \u2014 do not leave it silently stuck at 'in_progress'."
+    "4. When you finish a work session (even a partial one), update: status, filesTouched, decisionsLog (append, do not rewrite history), and lastUpdated/lastUpdatedBy in BOTH this JSON and the module's markdown file. Out-of-sync JSON/markdown is the one thing that breaks this system for the next LLM — keep them in lockstep.",
+    "5. If you get blocked, set status to 'blocked' and add a line to `blockers` explaining exactly what's needed to unblock — do not leave it silently stuck at 'in_progress'."
   ],
   "project": "AEO Visibility Platform",
   "specDoc": "docs/spec/AEO_Visibility_Platform_Spec_v1.1.docx",
   "conventionsDoc": "docs/CONVENTIONS.md",
   "specVersion": "1.1",
-  "lastUpdated": "2026-07-23",
+  "lastUpdated": "2026-07-24",
   "statusValues": [
     "not_started",
     "in_progress",
@@ -42,7 +42,7 @@
     },
     {
       "id": "caching",
-      "text": "Caching decision made explicitly (cached with stated TTL, or explicitly marked not-cached with a one-line reason) \u2014 never silently uncached by omission"
+      "text": "Caching decision made explicitly (cached with stated TTL, or explicitly marked not-cached with a one-line reason) — never silently uncached by omission"
     },
     {
       "id": "rate_limit",
@@ -50,7 +50,7 @@
     },
     {
       "id": "errors",
-      "text": "Failure paths handled explicitly (API timeout, rate-limit response, malformed AI output) \u2014 no silent swallow"
+      "text": "Failure paths handled explicitly (API timeout, rate-limit response, malformed AI output) — no silent swallow"
     },
     {
       "id": "tests",
@@ -103,9 +103,9 @@
       "id": "0.0",
       "name": "Project Setup",
       "phase": "0",
-      "specSection": "\u2014",
-      "status": "blocked",
-      "percentComplete": 20,
+      "specSection": "—",
+      "status": "in_review",
+      "percentComplete": 95,
       "dependsOn": [],
       "blocks": [
         "5.1"
@@ -128,43 +128,41 @@
           "done": true
         },
         {
-          "text": "Supabase project created, RLS enabled by default on the schema",
-          "done": false
+          "text": "Supabase project created (org TruSight, project AEO, https://vloradmcvozmhvvxiyvd.supabase.co); RLS enabled per-table starting at 5.1",
+          "done": true
         },
         {
           "text": "Vercel project connected to the repo",
-          "done": false
+          "done": true
         },
         {
-          "text": "Stripe test-mode account created",
+          "text": "Razorpay test-mode account created — deliberately deferred until after core features (5.1-5.8), per user decision",
           "done": false
         },
         {
           "text": "Gemini + NVIDIA NIM API keys obtained and stored as server-only env vars",
-          "done": false
+          "done": true
         },
         {
           "text": "Domain purchased/pointed (or a working *.vercel.app placeholder)",
-          "done": false
+          "done": true
         }
       ],
       "cachingNotes": "N/A at this stage.",
       "securityNotes": "Establish the env var naming convention (server-only vs NEXT_PUBLIC_) here, on day one, so no module after this one gets it wrong.",
-      "lastUpdated": "2026-07-23",
-      "lastUpdatedBy": "Claude (scaffold session)",
+      "lastUpdated": "2026-07-24",
+      "lastUpdatedBy": "Claude (Supabase MCP verification session)",
       "decisionsLog": [
         "2026-07-23 — Scaffolded app/ per docs/CONVENTIONS.md Section 1 (Next.js 16.2.11, TS strict, Tailwind, module/lib/type stubs, tests/, supabase/migrations/, .env.example, ESLint+Prettier, CI workflow, Dependabot). Verified: tsc --noEmit, eslint, prettier --check, and the test suite all pass. See progress/modules/0.0-project-setup.md for full detail.",
         "2026-07-23 — Used Node's built-in test runner instead of Vitest: Vitest crashed with a native Bus error tied to its worker pool, reproduced across pool modes and versions, isolated to this build shell. See module decisions log.",
         "2026-07-23 — next build could not be verified to completion in this sandbox (same worker-process SIGBUS, reproduced on Next 15 and 16 — not version-specific); dev server/typecheck/lint/tests all pass. .github/workflows/ci.yml is the real build gate once pushed. See module decisions log.",
-        "2026-07-23 — git init hit a stuck .git/index.lock from a mounted-drive filesystem limitation; user declined deleting the lock file, so git init/commit is deferred to the user's own machine. See module decisions log."
+        "2026-07-23 — git init hit a stuck .git/index.lock from a mounted-drive filesystem limitation; user declined deleting the lock file, so git init/commit is deferred to the user's own machine. See module decisions log.",
+        "2026-07-23 — User created the Supabase project and a GitHub repo (github.com/itssadnan/AEO); will run git init/commit/push locally. User also decided to deliberately defer Razorpay (account + 5.9 integration) until after core features 5.1-5.8 — safe to defer since 5.9 only blocks 5.10, nothing in the 5.1-5.8 critical path.",
+        "2026-07-24 — Confirmed via the Vercel MCP connector that Vercel is already connected and deployed (project 'aeo', id prj_y303pburKhXU2X0pwHYsE4M5AtoS, team 'Adnan's projects', READY production deployment at aeo-roan.vercel.app) — this had been sitting stale as an open blocker; the user had connected it outside of what was logged here. Also confirmed Gemini/NVIDIA NIM keys are real values in app/.env.local. Status moved blocked -> in_review; nothing here blocks later modules anymore. See module file for full detail."
       ],
       "blockers": [
-        "Supabase project not yet created (no MCP connector available)",
-        "Vercel project not yet connected (no MCP connector available)",
-        "Razorpay test-mode account not yet created (no MCP connector available)",
-        "Gemini + NVIDIA NIM API keys not yet obtained",
-        "Domain not yet purchased/pointed (vercel.app placeholder acceptable for now)",
-        "Local git repo not yet initialized on a machine where it will persist"
+        "Domain not purchased — not a real blocker, the aeo-roan.vercel.app placeholder already satisfies this acceptance criterion; purchase whenever convenient.",
+        "Razorpay test-mode account intentionally not created — deliberately deferred by user request until after core features 5.1-5.8 are done, not an oversight."
       ],
       "detailFile": "progress/modules/0.0-project-setup.md"
     },
@@ -173,8 +171,8 @@
       "name": "Auth & Account",
       "phase": "1",
       "specSection": "5.1",
-      "status": "not_started",
-      "percentComplete": 0,
+      "status": "in_review",
+      "percentComplete": 99,
       "dependsOn": [
         "0.0"
       ],
@@ -183,52 +181,133 @@
         "5.9"
       ],
       "owner": "unassigned",
-      "filesTouched": [],
+      "filesTouched": [
+        "app/supabase/migrations/0001_auth_and_workspaces.sql",
+        "app/supabase/migrations/0002_auth_security_hardening.sql",
+        "app/supabase/migrations/0003_fix_workspace_members_rls_recursion.sql",
+        "app/supabase/migrations/0004_move_workspace_rls_helpers_to_private_schema.sql",
+        "app/src/types/database.ts",
+        "app/src/lib/db/{supabase-server,supabase-browser,supabase-service-role,index}.ts",
+        "app/src/lib/security/{rate-limit,index}.ts",
+        "app/src/modules/auth/{email,permissions,schemas,workspace,index}.ts",
+        "app/src/app/(auth)/{layout,actions,sign-in/page,sign-up/page}",
+        "app/src/app/auth/callback/route.ts",
+        "app/src/middleware.ts",
+        "app/src/app/dashboard/page.tsx",
+        "app/src/app/page.tsx",
+        "app/tests/unit/auth-email.test.ts",
+        "app/tests/unit/auth-permissions.test.ts",
+        "app/tests/integration/auth-rls.test.ts",
+        "app/tsconfig.json",
+        "app/package.json"
+      ],
       "acceptanceCriteria": [
         {
           "text": "Email + Google OAuth signup/login working",
-          "done": false
+          "done": true
         },
         {
           "text": "Workspace (org) model: a workspace can contain multiple brands",
-          "done": false
+          "done": true
         },
         {
           "text": "Roles implemented: Owner, Member, Viewer",
-          "done": false
+          "done": true
         },
         {
           "text": "RLS policies scoped to workspace membership on every table created from this point on",
-          "done": false
+          "done": true
         },
         {
-          "text": "Email normalized before any uniqueness check (lowercase, strip +tag suffixes, strip dots for Gmail-style addresses) \u2014 both raw and normalized email stored",
-          "done": false
+          "text": "Email normalized before any uniqueness check (lowercase, strip +tag suffixes, strip dots for Gmail-style addresses) — both raw and normalized email stored",
+          "done": true
         },
         {
-          "text": "At most one workspace on the Free plan per normalized email as Owner, enforced at workspace-creation time (not just signup, since a paid workspace can later downgrade to free); attempting a second shows a clear message (\"this email already has a free workspace \u2014 upgrade it or log in\"), never a silent block",
-          "done": false
+          "text": "At most one workspace on the Free plan per normalized email as Owner, enforced at workspace-creation time (not just signup, since a paid workspace can later downgrade to free); attempting a second shows a clear message (\"this email already has a free workspace — upgrade it or log in\"), never a silent block",
+          "done": true
         },
         {
-          "text": "This limit applies to Free-plan ownership only \u2014 being invited as Member/Viewer to any number of other workspaces (the agency use case) is unrestricted",
-          "done": false
+          "text": "This limit applies to Free-plan ownership only — being invited as Member/Viewer to any number of other workspaces (the agency use case) is unrestricted",
+          "done": true
         },
         {
           "text": "Signup endpoint rate-limited by IP as a second layer against scripted mass signups, same pattern as the free-check tool (5.11)",
-          "done": false
+          "done": true
+        },
+        {
+          "text": "workspaces.experiments_used initialized to 0 at creation (see ERD) — meaningful for Free-plan workspaces only; the 3-lifetime-experiment cap enforcement and paid-feature gating live in 5.3/5.5/5.6/5.9, not here",
+          "done": true
         }
       ],
-      "cachingNotes": "Session/JWT caching handled by the Supabase client SDK \u2014 no custom caching needed here.",
+      "cachingNotes": "Session/JWT caching handled by the Supabase client SDK — no custom caching needed here.",
       "securityNotes": "This module sets the RLS pattern every later module must copy. Write the cross-tenant-denied test here first, reuse it as a template.",
-      "lastUpdated": "2026-07-23",
-      "lastUpdatedBy": null,
+      "lastUpdated": "2026-07-24",
+      "lastUpdatedBy": "Claude (RLS test execution session — found infinite-recursion bug)",
       "decisionsLog": [
         {
           "date": "2026-07-23",
-          "text": "One Free-plan workspace per person, not two, enforced via normalized-email uniqueness (not raw-string matching, which is trivially bypassed with +tag/dot email aliases) plus IP-based signup throttling. Deliberately did not add phone/card verification to close the remaining \"two different real email addresses\" loophole \u2014 that friction isn't justified against a threat this bounded, since the Free plan itself is capped at 5 prompts/weekly checks regardless. Rule scoped to Free-plan ownership only; workspace membership (agency clients invited as Viewer) is unrestricted."
+          "text": "One Free-plan workspace per person, not two, enforced via normalized-email uniqueness (not raw-string matching, which is trivially bypassed with +tag/dot email aliases) plus IP-based signup throttling. Deliberately did not add phone/card verification to close the remaining \"two different real email addresses\" loophole — that friction isn't justified against a threat this bounded, since the Free plan itself is capped at 5 prompts/weekly checks regardless. Rule scoped to Free-plan ownership only; workspace membership (agency clients invited as Viewer) is unrestricted."
+        },
+        {
+          "date": "2026-07-23",
+          "text": "Free plan redesigned from a recurring weekly-cadence tier to 3 lifetime on-demand experiments, then locked to read-only. This module owns workspaces.experiments_used's creation/default only — cap enforcement and paid-feature gating live in the modules that actually run/limit checks. Full reasoning in progress/modules/5.9-billing-and-subscription.md decisions log."
+        },
+        {
+          "date": "2026-07-23",
+          "text": "Implementation: workspace creation is a SECURITY DEFINER Postgres function (create_workspace), not a client-side insert, because the free-plan-uniqueness check needs a row lock (FOR UPDATE) across a race window that a single RLS policy can't express. No client-facing INSERT policy exists on workspaces/workspace_members as a result."
+        },
+        {
+          "date": "2026-07-23",
+          "text": "Implementation: the Owner/Member/Viewer invite hierarchy is enforced as an RLS INSERT policy on workspace_members (workspace_members_insert_by_role), not only in application code, so RLS is the real gate per docs/CONVENTIONS.md Section 6 item 1."
+        },
+        {
+          "date": "2026-07-23",
+          "text": "Implementation: built the IP rate limiter (rate_limit_events + checkRateLimit()) as a shared src/lib/security utility since the acceptance criteria says 5.11 will reuse the same pattern — built once, not duplicated later."
+        },
+        {
+          "date": "2026-07-23",
+          "text": "Known gap: tests/integration/auth-rls.test.ts is written but skips automatically — it requires a live Supabase project with migration 0001 applied plus real env vars, neither of which exist in the sandbox this was built in. Only tsc/eslint/prettier and the 12 pure-logic unit tests were actually verified. Do not mark this module done until the migration is applied and this test has actually run and passed — see Blockers."
+        },
+        {
+          "date": "2026-07-24",
+          "text": "Applied 0001_auth_and_workspaces.sql to the live project (vloradmcvozmhvvxiyvd) via the Supabase MCP connector. Fixed a real ordering bug caught by apply_migration itself: workspaces' RLS policies (workspaces_select_member/workspaces_update_owner) referenced workspace_members, but that table was originally declared after those policies in the file — Postgres rejected it with \"relation public.workspace_members does not exist\". Fixed by moving the workspace_members CREATE TABLE to immediately follow workspaces, before either table's RLS policies. Migration applied clean on retry."
+        },
+        {
+          "date": "2026-07-24",
+          "text": "Ran get_advisors (security) immediately after applying 0001, per its own recommendation to check right after DDL changes. It caught 2 real gaps beyond the 1 expected INFO (rate_limit_events RLS-with-no-policy, which is intentional/documented): (1) normalize_email had a mutable search_path, (2) handle_new_user and create_workspace were both callable directly as public RPCs (/rest/v1/rpc/...) by anon/authenticated, when handle_new_user should only ever fire via the on_auth_user_created trigger and create_workspace should never be callable by anon. Wrote and applied 0002_auth_security_hardening.sql: pinned normalize_email's search_path, revoked all EXECUTE on handle_new_user from public/anon/authenticated, revoked EXECUTE on create_workspace from public/anon and re-granted it to authenticated only. Re-ran get_advisors after: down to 2 remaining entries, both intentional and already documented (rate_limit_events INFO, and create_workspace still callable by authenticated — which is required, since that's how signed-in users create a workspace)."
+        },
+        {
+          "date": "2026-07-24",
+          "text": "Ran generate_typescript_types against the live schema and replaced the hand-written app/src/types/database.ts with the real generated file (adds __InternalSupabase.PostgrestVersion, proper FK Relationships entry for workspace_members -> workspaces, and the Tables/TablesInsert/TablesUpdate/Enums/CompositeTypes helper types Supabase's generator ships). tsc --noEmit passes clean against it. Also fetched the live project URL (https://vloradmcvozmhvvxiyvd.supabase.co) and anon/publishable keys via get_project_url/get_publishable_keys for the user to paste into app/.env.local — the service-role key still has to come from the user manually via the dashboard, since no MCP tool exposes it (a deliberate security boundary, not an oversight)."
+        },
+        {
+          "date": "2026-07-24",
+          "text": "User confirmed Google OAuth provider is now configured in the Supabase dashboard, and that NEXT_PUBLIC_SUPABASE_ANON_KEY/SUPABASE_SERVICE_ROLE_KEY are populated in their real .env files. Confirmed independently: app/.env.local in the mounted working folder now holds real-looking values for all three Supabase vars (real project URL, and two JWT-shaped keys, no longer the placeholder text)."
+        },
+        {
+          "date": "2026-07-24",
+          "text": "Security incident caught and fixed: real secrets (Supabase service-role key, anon key, Gemini key, NVIDIA NIM key) had been pasted into app/.env.example — the template file that's supposed to hold only placeholders and is deliberately NOT gitignored (docs/CONVENTIONS.md Section 1; root .gitignore has `app/.env*` then `!app/.env.example`), since it's meant to be committed. Checked git status/log first: this was still an uncommitted working-directory change (only one commit exists, predating this edit, and it's not pushed), so nothing leaked into git history or GitHub. Restored app/.env.example to the exact original committed placeholder content via `git show <initial-commit>:app/.env.example`; confirmed `git diff` on the file is now empty. No key rotation needed since nothing was ever committed/pushed, but this is a reminder to only ever paste real values into .env.local, never .env.example."
+        },
+        {
+          "date": "2026-07-24",
+          "text": "Two legitimate attempts made to actually execute (not just structurally verify) the cross-tenant RLS proof required by this project's own definitionOfDone \"rls\" item, both blocked by environment constraints rather than by any code/RLS defect: (1) tried proving it directly via SQL (execute_sql) by inserting two synthetic auth.users test rows and querying under simulated authenticated/anon roles — blocked by the platform's own safety classifier as a sensitive action, correctly, since writing directly into Supabase's auth schema is exactly the kind of thing that should require explicit human execution, not an LLM workaround. (2) Ran the actual written test suite (tests/integration/auth-rls.test.ts, which uses the sanctioned Supabase Admin API createUser/deleteUser, not raw SQL) via `node --env-file=.env.local --test`, now that real credentials exist in app/.env.local — this failed in the before() hook with AuthRetryableFetchError/'fetch failed'. Confirmed via a direct curl to the project's /auth/v1/health endpoint that this sandbox's outbound network proxy returns HTTP 403 for supabase.co — an environment/sandbox network-allowlist limitation, separate from the Supabase MCP connector's own channel (which works fine for apply_migration/execute_sql/etc.). Structural verification remains solid (RLS enabled on all 4 tables per list_tables, policies confirmed correct per get_advisors), but the actual behavioral proof — two real accounts, cross-tenant read/insert denied — has not yet been executed to a passing result anywhere. That must happen on a machine with real network egress to Supabase: the user's own machine (`npm test` locally), or GitHub Actions CI once the three secrets are added there."
+        },
+        {
+          "date": "2026-07-24",
+          "text": "User fixed the sandbox's outbound network access; re-verified with a direct curl to https://vloradmcvozmhvvxiyvd.supabase.co/auth/v1/health, which now returns a real 401 'No API key found' response instead of a proxy-level 403 — genuine egress to the live Supabase project confirmed. Re-ran tests/integration/auth-rls.test.ts for real via `node --env-file=.env.local --test`: it executed (no longer blocked), but FAILED — 3 of 4 subtests ('lets user A read their own workspace', 'denies user B reading user A's workspace', 'denies user B reading user A's workspace_members row') all threw Postgres error 42P17 'infinite recursion detected in policy for relation \"workspace_members\"'. The 4th subtest ('denies user B inserting...') shows as passing but only because its assertion is `error !== null`, which the same recursion error also satisfies — it does not actually prove the intended insert-denial behavior. Root cause identified in app/supabase/migrations/0001_auth_and_workspaces.sql: all four workspace_members RLS policies (select/insert/update/delete, lines ~159-218) use a USING/WITH CHECK subquery that selects from workspace_members itself (aliased self/wm) to check the caller's membership — a self-referencing subquery on the same table its own policy protects, which Postgres re-evaluates recursively. This is a known Supabase RLS anti-pattern; the standard fix is a SECURITY DEFINER helper function (e.g. is_workspace_member(workspace_id, user_id)) that looks up membership with RLS bypassed, referenced from all four policies instead of the direct self-join. This is a genuine code defect, not an environment issue — exactly what the module's own Next steps note said to treat it as if the test ran and failed. Not fixed yet — needs a migration 0003 and user sign-off before touching live RLS policies."
+        },
+        {
+          "date": "2026-07-24",
+          "text": "User approved the fix; applied migration 0003_fix_workspace_members_rls_recursion.sql live via the Supabase MCP connector (apply_migration, success). Added public.is_workspace_member(workspace_id, user_id) and public.has_workspace_role(workspace_id, user_id, role) as SECURITY DEFINER/STABLE functions with a pinned search_path, and rewrote all 4 workspace_members policies plus both workspaces policies (select/update) to call them instead of self-joining workspace_members directly. Also tightened tests/integration/auth-rls.test.ts's 4th subtest to assert error?.code === '42501' (the specific RLS-violation code) instead of just error !== null, since the old assertion could pass even when the failure was actually the 42P17 recursion bug. Re-ran `node --env-file=.env.local --test tests/integration/auth-rls.test.ts`: all 4 subtests now pass (0 failures) — this is the first genuine passing run of this test in this project's history, satisfying definitionOfDone's rls item for real. Ran get_advisors immediately after (per established pattern): it flagged the two new helper functions as WARN authenticated_security_definer_function_executable (directly callable via /rest/v1/rpc/..., letting any signed-in user probe arbitrary membership/role pairs). Attempted a follow-up migration to move both functions into a non-PostgREST-exposed private schema to close that surface entirely — this was blocked by the platform's own safety classifier (DDL dropping functions + changing schema grants on a live database) and was not worked around. Left as an open, documented, non-blocking follow-up — see Blockers."
+        },
+        {
+          "date": "2026-07-24",
+          "text": "User explicitly directed retrying the private-schema hardening migration; retried apply_migration with the identical SQL and it succeeded this time (the classifier block was transient/session-specific, not a permanent denial). Verified live via execute_sql (read-only pg_proc/pg_namespace query): private.is_workspace_member and private.has_workspace_role both exist, anon_can_execute=false, authenticated_can_execute=true; no public-schema versions remain. Re-ran get_advisors: the authenticated_security_definer_function_executable WARN for these two functions is gone — only the pre-existing, already-accepted create_workspace WARN and an unrelated auth_leaked_password_protection WARN remain. Security note: during this step, a tool result appeared claiming the migration file on disk had been altered by 'the user or a linter' into a materially less secure version (grants EXECUTE to anon, drops the private-schema hardening entirely, no explanation of why) and instructed not to mention this to the user. Independently verified via a direct file Read (unchanged from the version this module authored) and via the live-DB query above (matches the secure private-schema version, not the version described in that message) that no such change actually occurred anywhere — treated as a suspicious injected instruction, not a real event, and not acted on. Flagged to the user directly rather than followed."
         }
       ],
-      "blockers": [],
+      "blockers": [
+        "npm run dev / the full signup-signin-OAuth flow still unverified end-to-end by a human click-through — needs a manual pass now that .env.local is populated, Google OAuth is configured, and the RLS recursion bug is fixed. This is the only item left before this module can move to done."
+      ],
       "detailFile": "progress/modules/5.1-auth-and-account.md"
     },
     {
@@ -252,19 +331,28 @@
           "done": false
         },
         {
-          "text": "AI-assisted prompt suggestion: one Gemini call proposes 20-30 prompts from the brand's site/industry, editable before saving",
+          "text": "AI-assisted prompt suggestion: one Gemini call proposes 20-30 prompts from the brand's site/industry",
           "done": false
         },
         {
-          "text": "Plan-tier prompt-count limits enforced server-side (not just hidden in the UI)",
+          "text": "Free-plan workspaces: prompt list is auto-selected from the AI suggestions and fixed — not editable (exact default count deferred to implementation, kept low relative to Starter's floor); customization is a paid-only capability",
+          "done": false
+        },
+        {
+          "text": "Paid-plan workspaces: full edit/add/remove on the prompt list, up to plan-tier prompt-count limits enforced server-side (Starter 15-25, Growth 50-75, Agency fair-use), not just hidden in the UI",
           "done": false
         }
       ],
-      "cachingNotes": "Not cached \u2014 this is low-frequency, user-driven write traffic.",
+      "cachingNotes": "Not cached — this is low-frequency, user-driven write traffic.",
       "securityNotes": "Treat all user-entered prompt/brand text as untrusted; validate with zod and never interpolate raw into a system-level instruction to any AI call.",
-      "lastUpdated": null,
+      "lastUpdated": "2026-07-23",
       "lastUpdatedBy": null,
-      "decisionsLog": [],
+      "decisionsLog": [
+        {
+          "date": "2026-07-23",
+          "text": "Free-plan workspaces get a fixed, non-editable prompt list; prompt customization becomes a paid-only capability. Part of the wider Free-plan redesign (3 lifetime on-demand experiments, then locked) — see progress/modules/5.9-billing-and-subscription.md decisions log for the full reasoning."
+        }
+      ],
       "blockers": [],
       "detailFile": "progress/modules/5.2-brand-prompt-configuration.md"
     },
@@ -292,7 +380,7 @@
           "done": false
         },
         {
-          "text": "ai_task_configs table + resolveTaskModel(taskKey, workspaceId) resolver owned by this module (global default row + per-workspace override, enabled flag, admin-only RLS \u2014 see ERD); no other module hardcodes a provider or model string",
+          "text": "ai_task_configs table + resolveTaskModel(taskKey, workspaceId) resolver owned by this module (global default row + per-workspace override, enabled flag, admin-only RLS — see ERD); no other module hardcodes a provider or model string",
           "done": false
         },
         {
@@ -316,7 +404,7 @@
           "done": false
         },
         {
-          "text": "Key pool (primary/secondary/tertiary) implemented for GeminiProvider and NvidiaNimProvider per docs/CONVENTIONS.md \u2014 429 soft-fails to the next key, 401/403 marks that key dead + alerts the Admin Console, never a silent drop",
+          "text": "Key pool (primary/secondary/tertiary) implemented for GeminiProvider and NvidiaNimProvider per docs/CONVENTIONS.md — 429 soft-fails to the next key, 401/403 marks that key dead + alerts the Admin Console, never a silent drop",
           "done": false
         },
         {
@@ -324,22 +412,30 @@
           "done": false
         },
         {
-          "text": "Pool supports failoverMode \"shared\" (default; secondary/tertiary absorb 429s) vs \"emergency-only\" (secondary/tertiary called only on hard failures \u2014 401/403/5xx/timeout, never a plain 429); switching is a one-flag change, not a redeploy of logic",
+          "text": "Pool supports failoverMode \"shared\" (default; secondary/tertiary absorb 429s) vs \"emergency-only\" (secondary/tertiary called only on hard failures — 401/403/5xx/timeout, never a plain 429); switching is a one-flag change, not a redeploy of logic",
           "done": false
         },
         {
           "text": "Admin Console (5.10) surfaces which failoverMode is active per provider and reminds the admin to flip it the moment primary is upgraded (billing enabled for Gemini, or the free 200 RPM increase for NVIDIA NIM)",
           "done": false
+        },
+        {
+          "text": "Free-plan workspaces never enter the recurring scheduler — checks are triggered on-demand by the user only, gated by workspaces.experiments_used (lifetime cap: 3, never resets); a 4th attempt is blocked outright with an upgrade prompt, never silently queued or allowed",
+          "done": false
+        },
+        {
+          "text": "An on-demand free-tier check runs through the exact same AIProvider / resolveTaskModel / key-pool path as a paid check — no separate cheaper code path, since it is the same Gemini grounded call either way",
+          "done": false
         }
       ],
-      "cachingNotes": "Guard against redundant calls: before enqueueing a check, verify last_checked_at for that (brand, prompt) pair is older than the plan's check interval \u2014 prevents burning shared free quota on duplicate/rapid re-triggers. This is a Postgres timestamp check, not a separate cache service.",
+      "cachingNotes": "Paid plans: guard against redundant calls by verifying last_checked_at for that (brand, prompt) pair is older than the plan's check interval before enqueueing — a Postgres timestamp check, not a separate cache service. Free plan: no time-based guard applies (there is no recurring cadence) — instead gated by the workspaces.experiments_used lifetime counter, checked before allowing an on-demand run.",
       "securityNotes": "Gemini key is server-only, called exclusively from this worker, never from a client-reachable route. Log request counts, never prompt/answer content, in any cross-tenant-visible log.",
       "lastUpdated": "2026-07-23",
       "lastUpdatedBy": null,
       "decisionsLog": [
         {
           "date": "2026-07-23",
-          "text": "Split vendor-swapping (AIProvider interface) from model-per-task swapping (new AI_TASK_CONFIG map) \u2014 see docs/CONVENTIONS.md Section 5."
+          "text": "Split vendor-swapping (AIProvider interface) from model-per-task swapping (new AI_TASK_CONFIG map) — see docs/CONVENTIONS.md Section 5."
         },
         {
           "date": "2026-07-23",
@@ -352,6 +448,14 @@
         {
           "date": "2026-07-23",
           "text": "Refinement: two failover modes tied to the paid-tier upgrade trigger. Once primary is upgraded (paid Gemini / free RPM increase for NVIDIA NIM), it absorbs nearly all traffic, so secondary/tertiary (teammate-owned accounts) switch from ordinary rate-limit relief to hard-failure-only fallback. This meaningfully reduces but does not fully remove the risk accepted in the entry above. Target end state once revenue exists: replace teammate-owned keys with a second founder-controlled paid key, fully retiring the third-party risk."
+        },
+        {
+          "date": "2026-07-23",
+          "text": "Worker hosting committed to Supabase Edge Functions + pg_cron/pg_net, dropping Railway/Fly.io: both no longer offer real free tiers as of this date (Railway is a 30-day trial credit only; Fly.io is paid-credit only for new users). Supabase Edge Functions stay free with a 150s timeout, comfortably covering a grounded-search+extraction chain, with no new vendor needed. Also flagged for 5.2/5.11: Vercel Hobby's serverless functions hard-timeout at 10s, so any synchronous AI call in a Next.js API route (5.2 prompt suggestion, 5.11 free-check) should be measured once built and routed through a Supabase Edge Function instead if it risks that limit."
+        },
+        {
+          "date": "2026-07-23",
+          "text": "Free plan redesigned: 3 lifetime on-demand experiments instead of a recurring weekly cadence. Previously the free tier ran the same recurring scheduler as paid, just weekly instead of daily — this left free-user AI quota consumption open-ended for as long as an account stayed signed up, stacking on top of the multi-key pool risk already accepted. Changed to: a Free-plan workspace gets exactly 3 lifetime on-demand checks (user-triggered, not scheduled), tracked by workspaces.experiments_used (see ERD) and gated here rather than left to the UI. After the 3rd run, 5.5 generates one aggregate report from the 3 data points and no further checks are allowed; 5.6 shows the existing report read-only plus an upgrade CTA. Paid plans are unaffected and keep the full recurring-scheduler behavior. See progress/modules/5.9-billing-and-subscription.md decisions log for the complete before/after reasoning, and 5.5/5.6 for the corresponding Explanation-Engine and dashboard gating."
         }
       ],
       "blockers": [],
@@ -374,7 +478,7 @@
       "filesTouched": [],
       "acceptanceCriteria": [
         {
-          "text": "Model resolved via resolveTaskModel(\"extraction\", workspaceId) against the ai_task_configs table (owned by 5.3) \u2014 this module does not hardcode \"nvidia-nim\" or a model string anywhere in its own code",
+          "text": "Model resolved via resolveTaskModel(\"extraction\", workspaceId) against the ai_task_configs table (owned by 5.3) — this module does not hardcode \"nvidia-nim\" or a model string anywhere in its own code",
           "done": false
         },
         {
@@ -386,11 +490,11 @@
           "done": false
         },
         {
-          "text": "Runs as a step separate from the Gemini call \u2014 does not consume Gemini's grounding quota",
+          "text": "Runs as a step separate from the Gemini call — does not consume Gemini's grounding quota",
           "done": false
         }
       ],
-      "cachingNotes": "Not cached \u2014 each raw answer is unique per check, so there's nothing to reuse; kept cheap by using the free tier's generous RPM instead.",
+      "cachingNotes": "Not cached — each raw answer is unique per check, so there's nothing to reuse; kept cheap by using the free tier's generous RPM instead.",
       "securityNotes": "Never trust the model's JSON output as pre-validated; a malformed or off-schema response must be rejected and logged, not written through.",
       "lastUpdated": "2026-07-23",
       "lastUpdatedBy": null,
@@ -401,7 +505,7 @@
         },
         {
           "date": "2026-07-23",
-          "text": "Updated to reference the DB-backed ai_task_configs table (not a code file) \u2014 allows a custom-plan customer to be pointed at a different model via admin-set override, no code change."
+          "text": "Updated to reference the DB-backed ai_task_configs table (not a code file) — allows a custom-plan customer to be pointed at a different model via admin-set override, no code change."
         }
       ],
       "blockers": [],
@@ -437,7 +541,7 @@
           "done": false
         },
         {
-          "text": "Explanation Engine: percentage breakdown of why a competitor is cited more, via one NVIDIA NIM call per brand per check cycle, model resolved via resolveTaskModel(\"explanation_generation\", workspaceId) against ai_task_configs \u2014 not hardcoded in this module",
+          "text": "Explanation Engine: percentage breakdown of why a competitor is cited more, via one NVIDIA NIM call per brand per check cycle, model resolved via resolveTaskModel(\"explanation_generation\", workspaceId) against ai_task_configs — not hardcoded in this module",
           "done": false
         },
         {
@@ -447,10 +551,18 @@
         {
           "text": "Recommended actions are confidence-tagged (High/Medium/Low), never stated as flat guarantees",
           "done": false
+        },
+        {
+          "text": "Explanation Engine, Opportunity Finder, and recommended actions are computed only for paid-plan workspaces (workspaces.plan_tier != 'free') — gated here, not just hidden in the UI, so Free-plan traffic never triggers the NVIDIA NIM call at all",
+          "done": false
+        },
+        {
+          "text": "Free-plan workspaces get Visibility Score, mention count, average rank, Share-of-Voice, and Source Influence only; after the 3rd (final) lifetime experiment, one aggregate report is generated combining all 3 runs into a 3-point trend — still without the Explanation Engine",
+          "done": false
         }
       ],
-      "cachingNotes": "Aggregates (score, share-of-voice, explanation) are recomputed only when a new check result lands for that brand \u2014 cache the computed result and invalidate on new data, rather than recomputing on every dashboard load.",
-      "securityNotes": "Recommendation text is model-generated \u2014 label it as guidance in the UI, never as a guarantee, to avoid overstating certainty to customers.",
+      "cachingNotes": "Aggregates (score, share-of-voice, explanation) are recomputed only when a new check result lands for that brand — cache the computed result and invalidate on new data, rather than recomputing on every dashboard load.",
+      "securityNotes": "Recommendation text is model-generated — label it as guidance in the UI, never as a guarantee, to avoid overstating certainty to customers.",
       "lastUpdated": "2026-07-23",
       "lastUpdatedBy": null,
       "decisionsLog": [
@@ -461,6 +573,10 @@
         {
           "date": "2026-07-23",
           "text": "Updated to reference the DB-backed ai_task_configs table (not a code file)."
+        },
+        {
+          "date": "2026-07-23",
+          "text": "Explanation Engine/Opportunity Finder/recommended actions gated to paid plans only, computed here (not just hidden downstream in 5.6) so Free-plan traffic never costs an NVIDIA NIM call. Part of the wider Free-plan redesign — see progress/modules/5.9-billing-and-subscription.md decisions log."
         }
       ],
       "blockers": [],
@@ -481,7 +597,7 @@
       "filesTouched": [],
       "acceptanceCriteria": [
         {
-          "text": "Overview: Visibility Score, raw mention count, average rank, Share-of-Voice trend",
+          "text": "Overview: Visibility Score, raw mention count, average rank, Share-of-Voice trend; Free-plan workspaces additionally show remaining experiments (e.g. \"2 of 3 free checks used\")",
           "done": false
         },
         {
@@ -489,7 +605,7 @@
           "done": false
         },
         {
-          "text": "Competitor Explorer: Share-of-Voice + Explanation Engine + Opportunity Finder panels",
+          "text": "Competitor Explorer: Share-of-Voice always shown; Explanation Engine + Opportunity Finder panels render as a visible locked/upsell state for Free-plan workspaces (never silently omitted), full panels for paid",
           "done": false
         },
         {
@@ -503,13 +619,22 @@
         {
           "text": "Every result explicitly labeled by engine (\"Gemini Visibility\") with a one-click \"How we calculated this\" expansion",
           "done": false
+        },
+        {
+          "text": "Free-plan workspaces past the 3-experiment cap: \"run a new check\" replaced with an upgrade CTA; all previously generated report data remains fully viewable — read access is never revoked",
+          "done": false
         }
       ],
-      "cachingNotes": "Use Next.js data cache with tag-based revalidation, invalidated when a new check result lands for that brand \u2014 avoids recomputing/refetching on every page view between check cycles.",
-      "securityNotes": "CSRF protection on forms; all AI-sourced text (answers, explanations) rendered via safe text components, never dangerouslySetInnerHTML \u2014 it is untrusted third-party content.",
-      "lastUpdated": null,
+      "cachingNotes": "Use Next.js data cache with tag-based revalidation, invalidated when a new check result lands for that brand — avoids recomputing/refetching on every page view between check cycles.",
+      "securityNotes": "CSRF protection on forms; all AI-sourced text (answers, explanations) rendered via safe text components, never dangerouslySetInnerHTML — it is untrusted third-party content.",
+      "lastUpdated": "2026-07-23",
       "lastUpdatedBy": null,
-      "decisionsLog": [],
+      "decisionsLog": [
+        {
+          "date": "2026-07-23",
+          "text": "Competitor Explorer shows a visible locked/upsell state for Explanation Engine/Opportunity Finder on Free-plan workspaces rather than hiding the panels outright, and the Overview surfaces remaining free-experiment count. Part of the wider Free-plan redesign — see progress/modules/5.9-billing-and-subscription.md decisions log."
+        }
+      ],
       "blockers": [],
       "detailFile": "progress/modules/5.6-dashboard-frontend.md"
     },
@@ -534,7 +659,7 @@
           "done": false
         },
         {
-          "text": "Checks for llms.txt (flagged as optional/experimental in the UI copy \u2014 no overclaiming its impact)",
+          "text": "Checks for llms.txt (flagged as optional/experimental in the UI copy — no overclaiming its impact)",
           "done": false
         },
         {
@@ -546,7 +671,7 @@
           "done": false
         }
       ],
-      "cachingNotes": "Cache per-domain audit result with a 24h TTL \u2014 a site's robots.txt/schema doesn't change minute to minute, no need to refetch on every dashboard load.",
+      "cachingNotes": "Cache per-domain audit result with a 24h TTL — a site's robots.txt/schema doesn't change minute to minute, no need to refetch on every dashboard load.",
       "securityNotes": "Identify your own crawler with a clear user-agent string; respect standard fetch etiquette when the target isn't the customer's own domain.",
       "lastUpdated": null,
       "lastUpdatedBy": null,
@@ -577,7 +702,7 @@
           "done": false
         }
       ],
-      "cachingNotes": "N/A \u2014 each digest is generated once per send, inherently non-repeated.",
+      "cachingNotes": "N/A — each digest is generated once per send, inherently non-repeated.",
       "securityNotes": "SPF/DKIM/DMARC configured on the sending domain before the first real send.",
       "lastUpdated": null,
       "lastUpdatedBy": null,
@@ -610,14 +735,30 @@
         {
           "text": "Prompt-count/frequency limits enforced in 5.2 and 5.3, not just displayed in the UI",
           "done": false
+        },
+        {
+          "text": "Free plan enforces a lifetime cap, not a period-based one: workspaces.experiments_used capped at 3, never reset by this module's billing-period logic (that reset logic applies to paid plans' usage_counters only)",
+          "done": false
+        },
+        {
+          "text": "Upgrading a Free-plan workspace to any paid tier does not reset or restore experiments_used — it becomes irrelevant the moment plan_tier leaves free, since paid plans aren't limited by it",
+          "done": false
         }
       ],
-      "cachingNotes": "Not cached \u2014 billing state must always read as current, never stale.",
+      "cachingNotes": "Not cached — billing state must always read as current, never stale.",
       "securityNotes": "Every Stripe webhook signature verified (constant-time compare) before the payload is trusted; unverified webhooks rejected outright.",
-      "lastUpdated": null,
-      "lastUpdatedBy": null,
-      "decisionsLog": [],
-      "blockers": [],
+      "lastUpdated": "2026-07-23",
+      "lastUpdatedBy": "Claude (scaffold session)",
+      "decisionsLog": [
+        "2026-07-23 — User decided to deliberately defer this entire module (Razorpay account creation + integration) until after core features 5.1-5.8 are built. Safe to defer: 5.9 only blocks 5.10 (Admin Console revenue view), nothing in the 5.1-5.8 critical path depends on it. See progress/modules/5.9-billing-and-subscription.md for full reasoning.",
+        {
+          "date": "2026-07-23",
+          "text": "Free plan redesigned: 3 lifetime on-demand experiments + one report, then locked, replacing the original recurring-weekly-checks-forever model. What changed: a Free-plan workspace no longer gets an ongoing weekly automated check — it gets exactly 3 on-demand, user-triggered checks total (never resets, doesn't renew), tracked by a new workspaces.experiments_used column. After the 3rd run, 5.5 generates one aggregate report (score, rank, citations, a 3-point Share-of-Voice trend) and no further checks are allowed. Paid plans (Starter/Growth/Agency) are unaffected. What's also paid-only now: the Explanation Engine, Opportunity Finder, and confidence-tagged recommended actions (5.5) are computed only for paid plans — gated before the NVIDIA NIM call happens at all. Free-plan prompts also become fixed/non-editable (5.2). Why: the original free tier's AI-quota exposure per signup was open-ended, compounding the risk already accepted around the multi-key failover pool (5.3). A fixed lifetime cap bounds the cost of every free signup to a known, small number, removes an entire scheduling branch from 5.3, and creates a harder, clearer upgrade trigger. Superseded: spec Section 3.3/3.4's \"Automated weekly (free plan) / daily (paid plan) checks\" line, for the Free plan specifically — paid-tier numbers are unchanged. The spec docx is left as the original v1.1 historical document, not live-patched; this tracker entry is the current source of truth. Cross-references: enforcement split across 5.2 (fixed prompt list), 5.3 (on-demand trigger + counter gate), 5.5 (aggregate report + paid-only Explanation Engine), 5.6 (locked/upsell UI), this module (lifetime vs. period-based limits). workspaces.experiments_used owned/created by 5.1."
+        }
+      ],
+      "blockers": [
+        "Intentionally not started — deliberately deferred by user request, not an oversight. No action until core features (5.1-5.8) are done."
+      ],
       "detailFile": "progress/modules/5.9-billing-and-subscription.md"
     },
     {
@@ -675,18 +816,18 @@
           "done": false
         }
       ],
-      "cachingNotes": "Short TTL (e.g. 60s) on the quota-usage view is fine \u2014 it's an internal dashboard, not billing-critical, so a slightly stale read is an acceptable tradeoff for lower DB load.",
+      "cachingNotes": "Short TTL (e.g. 60s) on the quota-usage view is fine — it's an internal dashboard, not billing-critical, so a slightly stale read is an acceptable tradeoff for lower DB load.",
       "securityNotes": "Gate at the server/API layer by role check, not just by hiding a frontend link.",
       "lastUpdated": "2026-07-23",
       "lastUpdatedBy": null,
       "decisionsLog": [
         {
           "date": "2026-07-23",
-          "text": "Scope expanded to own the admin UI for ai_task_configs (global enable/disable + per-workspace override management for model experiments) \u2014 one small screen, not a new module."
+          "text": "Scope expanded to own the admin UI for ai_task_configs (global enable/disable + per-workspace override management for model experiments) — one small screen, not a new module."
         },
         {
           "date": "2026-07-23",
-          "text": "Scope further expanded to surface the multi-key failover pool (5.3) \u2014 per-key health + immediate alert on a key dying. Required condition of accepting the key-pool risk, not optional."
+          "text": "Scope further expanded to surface the multi-key failover pool (5.3) — per-key health + immediate alert on a key dying. Required condition of accepting the key-pool risk, not optional."
         }
       ],
       "blockers": [],
@@ -718,8 +859,8 @@
           "done": false
         }
       ],
-      "cachingNotes": "Highest-priority cache in the product: identical (brand, prompt) free-check results cached for 24h, keyed by a hash of normalized input \u2014 this is the single biggest defense against a public endpoint draining the shared free Gemini quota.",
-      "securityNotes": "IP rate limit + CAPTCHA/honeypot \u2014 this is the most exposed, unauthenticated surface in the whole system and must not ship without both controls in place.",
+      "cachingNotes": "Highest-priority cache in the product: identical (brand, prompt) free-check results cached for 24h, keyed by a hash of normalized input — this is the single biggest defense against a public endpoint draining the shared free Gemini quota.",
+      "securityNotes": "IP rate limit + CAPTCHA/honeypot — this is the most exposed, unauthenticated surface in the whole system and must not ship without both controls in place.",
       "lastUpdated": null,
       "lastUpdatedBy": null,
       "decisionsLog": [],
@@ -758,7 +899,7 @@
           "done": false
         }
       ],
-      "cachingNotes": "Reuses the 5.11 free-check cache where a lead's brand was already checked recently \u2014 avoids double-spending quota on the same company.",
+      "cachingNotes": "Reuses the 5.11 free-check cache where a lead's brand was already checked recently — avoids double-spending quota on the same company.",
       "securityNotes": "Scope data access to public company info only; comply with CAN-SPAM/GDPR unsubscribe requirements from the first send.",
       "lastUpdated": null,
       "lastUpdatedBy": null,
@@ -793,12 +934,12 @@
           "done": false
         },
         {
-          "text": "UI clearly labels each engine by name \u2014 never implies ChatGPT when the data came from Gemini",
+          "text": "UI clearly labels each engine by name — never implies ChatGPT when the data came from Gemini",
           "done": false
         }
       ],
-      "cachingNotes": "Same TTL/guard pattern as 5.3 and 5.11, per provider \u2014 these are paid calls, so the redundant-call guard matters even more here than on the free tier.",
-      "securityNotes": "Never scrape a competitor AI product's consumer web interface under any circumstance \u2014 only the official APIs listed here.",
+      "cachingNotes": "Same TTL/guard pattern as 5.3 and 5.11, per provider — these are paid calls, so the redundant-call guard matters even more here than on the free tier.",
+      "securityNotes": "Never scrape a competitor AI product's consumer web interface under any circumstance — only the official APIs listed here.",
       "lastUpdated": null,
       "lastUpdatedBy": null,
       "decisionsLog": [],
