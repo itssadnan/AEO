@@ -60,6 +60,10 @@
     {
       "id": "docs",
       "text": "This module's tracker file updated: status, files list, decisions log, and any new caching/security notes"
+    },
+    {
+      "id": "deploy",
+      "text": "If this module added/changed any file under app/src/app/** or app/src/modules/**: confirm the actual Vercel deployment for the pushed commit shows state READY (via the Vercel MCP connector's get_deployment/list_deployments), not just that local tsc/prettier/tests pass. Added 2026-07-24 after 5 consecutive production builds failed post-966cb69 on a client/server bundle-boundary bug (a Client Component importing a barrel that re-exports server-only code) that none of tsc/prettier/unit tests catch, and that next build can't be run locally in this sandbox (SIGBUS, see Module 0.0). See progress/modules/5.2-brand-prompt-configuration.md decisions log for the full incident."
     }
   ],
   "phases": [
@@ -412,6 +416,10 @@
         {
           "date": "2026-07-24",
           "text": "Verified: tsc --noEmit clean, prettier clean, 26/26 unit tests passing (14 new), live Gemini API smoke test returned 25 well-formed prompts for a real brand. get_advisors run after both migrations: no new security findings from this module's own objects; found auth_rls_initplan performance WARN on the 4 new RLS policies (same pre-existing pattern as 5.1's policies, not a new defect) and the pre-existing auth_leaked_password_protection WARN — both logged in progress/LEFT_FOR_FINAL_TOUCHES.md rather than fixed inline (fixing the RLS pattern touches 5.1's already-done policies and deserves its own migration + re-test pass). Committed as 966cb69, pushed to origin/main."
+        },
+        {
+          "date": "2026-07-24",
+          "text": "User reported the Vercel deployment failing. Confirmed via the Vercel MCP connector: every production build since 966cb69 (this module's feature commit) had failed with the same Turbopack error -- brand-form.tsx (Client Component) imported PROMPT_LIMIT_BY_PLAN_TIER (a runtime value) from the brand-config barrel, which also re-exports gemini.ts's server-only-marked suggestPrompts; Turbopack correctly refuses to bundle server-only code into a client component regardless of whether it's actually called. The prior entry's 'verified' claim was true but incomplete -- tsc/prettier/tests don't catch this class of bug, and next build SIGBUSes in this sandbox, so nothing available could have caught it before Vercel's real build did. Fixed in commit dcaabb3: moved the limit computation into page.tsx (Server Component) and pass it down as a plain number prop; brand-form.tsx now only has a fully-erased type-only import from the barrel. Confirmed live: deployment dpl_CKgdoRRQvmitkBPgaF575Teof4wj is READY and aliased to aeo-roan.vercel.app -- first green production build since 966cb69. Lesson logged in the module file: for any module mixing a Client Component with server-only logic, 'pushed and Vercel shows READY' is part of the real Definition of Done, not optional follow-up verification."
         }
       ],
       "blockers": [],
