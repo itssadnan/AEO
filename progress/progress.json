@@ -173,7 +173,7 @@
       "phase": "1",
       "specSection": "5.1",
       "status": "in_review",
-      "percentComplete": 95,
+      "percentComplete": 97,
       "dependsOn": [
         "0.0"
       ],
@@ -204,7 +204,11 @@
       ],
       "acceptanceCriteria": [
         {
-          "text": "Email + Google OAuth signup/login working",
+          "text": "Email signup/login working",
+          "done": false
+        },
+        {
+          "text": "Google OAuth signup/login working -- descoped from this module's done gate 2026-07-24 by user decision; tracked as a standalone item in progress/LEFT_FOR_FINAL_TOUCHES.md instead. App code side is complete and correct; the live Supabase project currently has the provider disabled server-side, fixable only via the dashboard.",
           "done": false
         },
         {
@@ -243,7 +247,7 @@
       "cachingNotes": "Session/JWT caching handled by the Supabase client SDK — no custom caching needed here.",
       "securityNotes": "This module sets the RLS pattern every later module must copy. Write the cross-tenant-denied test here first, reuse it as a template.",
       "lastUpdated": "2026-07-24",
-      "lastUpdatedBy": "Claude (pushed 81cc1d4+3c6e19e, Vercel redeployed clean; live click-through found Google OAuth disabled on Supabase)",
+      "lastUpdatedBy": "Claude (Google OAuth descoped from this module's done gate by user decision; tracked separately, no longer blocking 5.2)",
       "decisionsLog": [
         {
           "date": "2026-07-23",
@@ -320,12 +324,16 @@
         {
           "date": "2026-07-24",
           "text": "(Same day, key registered.) User added the SSH deploy public key to GitHub. Pushed 81cc1d4+3c6e19e to origin/main; Vercel auto-deployed to production and reached READY. Ran the live click-through via Claude in Chrome. Findings: (1) fresh signup blocked by Supabase's own free-tier email-send rate limit (429 'email rate limit exceeded') -- pre-existing, already tracked in LEFT_FOR_FINAL_TOUCHES.md, confirmed via execute_sql that no orphaned row was left behind; (2) sign-in with the one available (browser-autofilled) credential set was rejected -- confirmed via Supabase auth logs (delegated to a subagent, logs too large for direct reading) that this was a genuine 400 invalid_credentials, not a bug, but it doesn't prove a successful sign-in either since the password may be stale; (3) Google OAuth is broken on the live project -- clicking 'Continue with Google' correctly builds the redirect but Supabase itself returns 400 'Unsupported provider: provider is not enabled', contradicting the earlier claim it was configured. Un-checked that acceptance criterion. Net result: the code fix is live and its failure paths behave correctly, but this module is not done -- one real regression (Google provider disabled) plus two checks still environmentally blocked."
+        },
+        {
+          "date": "2026-07-24",
+          "text": "(Same day.) User asked whether the Google OAuth issue should keep 5.1/5.2 blocked or be split out. Corrected an inaccurate premise first: no session or tool in this project has ever disabled Google OAuth deliberately -- the decisions log only shows it being configured, and no available tool can edit Supabase Auth provider settings. Likely conflated with the separate, genuinely-deliberate 'Confirm email' disable. Recommended splitting the acceptance criterion (email/password gates done; Google OAuth tracked separately, non-blocking) since nothing downstream of 5.1 actually depends on Google OAuth specifically. User chose to split it out. acceptanceCriteria updated accordingly; Google OAuth item moved to progress/LEFT_FOR_FINAL_TOUCHES.md. Module 5.2 is now unblocked to start regardless of the OAuth dashboard fix."
         }
       ],
       "blockers": [
-        "NEW: Google OAuth is not enabled on the live Supabase project (confirmed via a live click-through returning 'provider is not enabled') -- contradicts the earlier claim this was configured. Needs the user to check Supabase Dashboard -> Authentication -> Providers -> Google. Not an app-code bug.",
-        "Fresh-signup click-through is blocked by Supabase's own email-send rate limit (429), a pre-existing/already-tracked issue (see LEFT_FOR_FINAL_TOUCHES.md), not caused by the 81cc1d4 fix. Needs the rate-limit window to clear or real SMTP configured.",
-        "Sign-in has not been proven successful -- the one attempt used a possibly-stale browser-autofilled password and was correctly rejected (verified via auth logs: genuine invalid_credentials, not a bug). Needs one pass with a password known to be correct, ideally paired with the next fresh-signup test."
+        "Fresh-signup click-through is blocked by Supabase's own email-send rate limit (429), a pre-existing/already-tracked issue (see LEFT_FOR_FINAL_TOUCHES.md), not caused by the 81cc1d4 fix. Needs the rate-limit window to clear or real SMTP configured. This is the only item gating this module's done status now.",
+        "Sign-in has not been proven successful -- the one attempt used a possibly-stale browser-autofilled password and was correctly rejected (verified via auth logs: genuine invalid_credentials, not a bug). Needs one pass with a password known to be correct, ideally paired with the next fresh-signup test.",
+        "Google OAuth is not enabled on the live Supabase project -- descoped from this module's done gate 2026-07-24 by user decision, now tracked standalone in progress/LEFT_FOR_FINAL_TOUCHES.md. Not blocking 5.1 or 5.2 anymore."
       ],
       "detailFile": "progress/modules/5.1-auth-and-account.md"
     },
