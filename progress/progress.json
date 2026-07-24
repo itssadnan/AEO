@@ -336,10 +336,14 @@
         {
           "date": "2026-07-24",
           "text": "(Same day, closing.) User confirmed: track both open dashboard-config gaps (Google OAuth, 'Confirm email') in the pending/final-touches tracker and close this module out. Flipped status to done, percentComplete to 100. Left both acceptance-criteria lines about them explicitly marked with notes explaining the deviation from progress.json's own done-gate protocol is a deliberate, documented user decision, not an oversight. User also asked about bypassing real authentication during further development and identifying users by email instead -- clarifying the intent (dev/test convenience only vs. an actual product-level auth change) before writing any code, since RLS depends on real Supabase session identity and a naive email-only trust model would be a genuine security regression."
+        },
+        {
+          "date": "2026-07-24",
+          "text": "(Later session, post-done.) User reported login confusion after adding https://aeo-roan.vercel.app/ as a Supabase Redirect URL: an email not in user_profiles still got rejected as 'already exists', plus the signup rate limit tripped. Root-caused via execute_sql: (1) genuine orphaned auth.users row (csalad504@gmail.com, pre-existing test debris) with no user_profiles row -- our duplicate check only looks at user_profiles, so Supabase's own uniqueness constraint was the actual source of the rejection, not a bug; (2) rate limit was correctly enforcing exactly 5/hour (verified: 5 signup: events for the user's IP inside the current 60-min window). Also found and fixed a real bug while investigating: signUpAction()'s signUp() call never set options.emailRedirectTo (unlike the Google OAuth action, which does), so confirmation-email links never routed through /auth/callback -- meaning a confirming email/password user never got a session or workspace. Fixed in commit 27798c2. This fix requires /auth/callback (not just the bare origin the user added) in Supabase's Redirect URLs allow-list -- flagged as a new LEFT_FOR_FINAL_TOUCHES.md item since no available tool can change that dashboard setting directly."
         }
       ],
       "blockers": [
-        "No open blockers for this module. Two Supabase dashboard-config gaps (Google OAuth disabled; \"Confirm email\" active, contradicting an earlier note) remain open but are intentionally non-blocking by explicit user decision 2026-07-24 -- both tracked standalone in progress/LEFT_FOR_FINAL_TOUCHES.md, not silently dropped."
+        "No open blockers for this module. Three Supabase dashboard-config gaps remain open but are intentionally non-blocking: Google OAuth disabled; \"Confirm email\" active (contradicting an earlier note); Redirect URLs allow-list missing /auth/callback (found 2026-07-24, needed for both Google OAuth and the just-fixed email-confirmation flow to actually work in production) -- all three tracked standalone in progress/LEFT_FOR_FINAL_TOUCHES.md, not silently dropped."
       ],
       "detailFile": "progress/modules/5.1-auth-and-account.md"
     },
