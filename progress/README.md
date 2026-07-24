@@ -1,9 +1,10 @@
 # Progress Tracker — How To Use This
 
-This package exists so that development can be picked up by any LLM session (or any human) with zero prior context, at any point, without re-deriving decisions that were already made. Two files matter:
+This package exists so that development can be picked up by any LLM session (or any human) with zero prior context, at any point, without re-deriving decisions that were already made. Three files matter:
 
 - **`progress.json`** — the machine-readable source of truth. Status, dependencies, ownership, and checklists live here.
 - **`modules/<id>-<name>.md`** — one per module, human-readable, holds the *why* behind decisions (the append-only Decisions log), not just the current status.
+- **`LEFT_FOR_FINAL_TOUCHES.md`** — cross-module list of deferred, non-blocking work (config that's a workaround for now, cleanup items, things to do before a real launch but not before the next module). Read it every session alongside `progress.json`; append to it whenever a module's work surfaces something worth deferring rather than fixing immediately.
 
 They must always agree. If they ever drift, `progress.json` is the tiebreaker for status/dependencies, and the module `.md` file is the tiebreaker for historical reasoning — but drifting at all is a process failure, not a normal state. Update both, every time, in the same commit.
 

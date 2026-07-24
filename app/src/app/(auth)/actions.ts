@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/db";
 import { checkRateLimit } from "@/lib/security";
-import { createWorkspace, signInSchema, signUpSchema } from "@/modules/auth";
+import { createWorkspace, normalizeEmail, signInSchema, signUpSchema } from "@/modules/auth";
 
 /**
  * Signup: validates input, rate-limits by IP (Module 5.1 acceptance
@@ -37,6 +37,44 @@ export async function signUpAction(formData: FormData): Promise<void> {
   if (!rate.allowed) {
     redirect(
       `/sign-up?error=${encodeURIComponent("Too many signup attempts from this network. Try again later.")}`,
+    );
+  }
+
+  // Pre-check for an existing identity with the same normalized email before
+  // ever calling signUp(). user_profiles.normalized_email has a hard unique
+  // constraint (migration 0001 — "at most one identity per real inbox",
+  // deliberate, not just a workspace-level rule) enforced by the
+  // handle_new_user() trigger on auth.users. That's correct for data
+  // integrity, but Supabase Auth (GoTrue) can't surface a friendly message
+  // when a trigger aborts its transaction — it always collapses to an opaque
+  // "Database error saving new user" 500. Catching the collision here, with
+  // the service-role client (user_profiles has no anon/authenticated select
+  // policy for other users' rows), lets us show a clean error instead of
+  // letting a doomed signUp() call reach Postgres. This mirrors the intent
+  // already documented on normalizeEmail() in modules/auth/email.ts ("so the
+  // UI/API layer can show a same-email error before round-tripping to
+  // Postgres") — it just wasn't wired up here yet.
+  //
+  // Note: this is a best-effort check, not a lock — two concurrent signups
+  // for the same inbox could both pass it. The DB constraint is still the
+  // real backstop in that rare race; only the UX degrades back to the
+  // generic error, data integrity is unaffected.
+  const normalizedEmail = normalizeEmail(parsed.data.email);
+  const { data: existingProfile, error: profileLookupError } = await rateLimitClient
+    .from("user_profiles")
+    .select("id")
+    .eq("normalized_email", normalizedEmail)
+    .maybeSingle();
+
+  if (profileLookupError) {
+    console.error("user_profiles duplicate-email lookup failed", profileLookupError);
+    // Fail open: don't block a legitimate signup on a lookup hiccup. Worst
+    // case is falling back to the pre-existing (already logged) crash path.
+  }
+
+  if (existingProfile) {
+    redirect(
+      `/sign-up?error=${encodeURIComponent("An account already exists for this email. Sign in instead.")}`,
     );
   }
 

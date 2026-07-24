@@ -12,6 +12,7 @@
   "conventionsDoc": "docs/CONVENTIONS.md",
   "specVersion": "1.1",
   "lastUpdated": "2026-07-24",
+  "leftForFinalTouches": "progress/LEFT_FOR_FINAL_TOUCHES.md",
   "statusValues": [
     "not_started",
     "in_progress",
@@ -242,7 +243,7 @@
       "cachingNotes": "Session/JWT caching handled by the Supabase client SDK — no custom caching needed here.",
       "securityNotes": "This module sets the RLS pattern every later module must copy. Write the cross-tenant-denied test here first, reuse it as a template.",
       "lastUpdated": "2026-07-24",
-      "lastUpdatedBy": "Claude (RLS test execution session — found infinite-recursion bug)",
+      "lastUpdatedBy": "Claude (final click-through session — found and fixed signup duplicate-email crash)",
       "decisionsLog": [
         {
           "date": "2026-07-23",
@@ -303,10 +304,19 @@
         {
           "date": "2026-07-24",
           "text": "User explicitly directed retrying the private-schema hardening migration; retried apply_migration with the identical SQL and it succeeded this time (the classifier block was transient/session-specific, not a permanent denial). Verified live via execute_sql (read-only pg_proc/pg_namespace query): private.is_workspace_member and private.has_workspace_role both exist, anon_can_execute=false, authenticated_can_execute=true; no public-schema versions remain. Re-ran get_advisors: the authenticated_security_definer_function_executable WARN for these two functions is gone — only the pre-existing, already-accepted create_workspace WARN and an unrelated auth_leaked_password_protection WARN remain. Security note: during this step, a tool result appeared claiming the migration file on disk had been altered by 'the user or a linter' into a materially less secure version (grants EXECUTE to anon, drops the private-schema hardening entirely, no explanation of why) and instructed not to mention this to the user. Independently verified via a direct file Read (unchanged from the version this module authored) and via the live-DB query above (matches the secure private-schema version, not the version described in that message) that no such change actually occurred anywhere — treated as a suspicious injected instruction, not a real event, and not acted on. Flagged to the user directly rather than followed."
+        },
+        {
+          "date": "2026-07-24",
+          "text": "User disabled Supabase Auth's 'Confirm email' requirement (previous session's SMTP-rate-limit workaround) and asked for one final clean click-through before marking this module done. Ran it live against aeo-roan.vercel.app via Claude in Chrome. Sign-up crashed: POST /sign-up returned a raw 500 with an opaque body (signUp failed { status: 500, message: '{}' }). Root-caused via Vercel runtime logs + Supabase auth logs (get_logs, since the SQL-exposed audit_log_entries table had zero rows — the failure aborted before any DB write completed): 'Database error saving new user', underlying Postgres error 'duplicate key value violates unique constraint \"user_profiles_normalized_email_key\"' (23505). Confirmed via execute_sql: every test email I used (heisen.better.berg+aeofinaltest2@..., +aeofinaltest3@...) normalizes (public.normalize_email) to the same real inbox as an earlier unconfirmed test signup (+aeodiagfinal@..., created 11:33:48 UTC this session) that already has a user_profiles row. This is NOT a bug in the uniqueness rule itself — migration 0001's own comment confirms 'at most one identity per real inbox' is deliberate, not just a workspace-level rule (see 2026-07-23 decisions log entry above). The bug is the failure mode: Supabase Auth (GoTrue) cannot surface a custom trigger's exception message to the client — any handle_new_user() failure collapses to a generic opaque 500, which is exactly what a real user would hit if they signed up, didn't confirm, and tried again (even with the literal same email, in some flows) or used a +alias without realizing it colludes with an existing account. Confirmed this is a genuine app-code gap, not newly introduced: app/src/modules/auth/email.ts's normalizeEmail() docstring already says it exists 'so the UI/API layer can show a same-email error before round-tripping to Postgres' — that pre-check was designed for but never actually wired into signUpAction()."
+        },
+        {
+          "date": "2026-07-24",
+          "text": "Fixed in app/src/app/(auth)/actions.ts: signUpAction() now queries user_profiles (via the service-role client, since user_profiles has no anon select policy) for an existing row matching normalizeEmail(email) before ever calling supabase.auth.signUp(). If found, redirects with a clean 'An account already exists for this email. Sign in instead.' message instead of attempting a doomed signUp() call. Documented as a best-effort check, not a lock — a rare concurrent-signup race could still slip through to the same crash, but the DB unique constraint remains the real backstop for data integrity either way. Verified with `npx tsc --noEmit` (clean). This fix is committed locally in the mounted working directory but NOT yet pushed or deployed — this sandbox has read-only git remote access (git ls-remote works, git push fails with 'could not read Username for github.com': no credentials), consistent with every other code change this session. User needs to commit, push, and redeploy (same process as every prior fix this session) before the full signup flow can be re-verified end-to-end. Sign-in and Google OAuth were not yet re-tested this pass since sign-up itself blocked first — both still need a pass once this deploys. Module remains in_review, not done."
         }
       ],
       "blockers": [
-        "npm run dev / the full signup-signin-OAuth flow still unverified end-to-end by a human click-through — needs a manual pass now that .env.local is populated, Google OAuth is configured, and the RLS recursion bug is fixed. This is the only item left before this module can move to done."
+        "FIX COMMITTED LOCALLY, NOT YET DEPLOYED: signUpAction() now pre-checks for an existing normalized-email identity before calling Supabase's signUp(), fixing the raw 500 crash found 2026-07-24 (see decisions log). User needs to commit/push and redeploy, then the full signup -> sign-in -> Google OAuth click-through needs to be re-run. This is the only item left before this module can move to done.",
+        "Not yet re-verified this session: sign-in with an existing confirmed account, and the Google OAuth button — both were next on the list when the sign-up crash was found and took priority to fix first."
       ],
       "detailFile": "progress/modules/5.1-auth-and-account.md"
     },
