@@ -82,6 +82,25 @@ export async function signUpAction(formData: FormData): Promise<void> {
   const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
+    options: {
+      // Without this, Supabase falls back to whatever "Site URL" is
+      // configured in the dashboard (Authentication -> URL Configuration),
+      // and the confirmation link lands the user on a plain page that never
+      // exchanges the PKCE code for a session — so a confirmed user would
+      // never actually get signed in or get a workspace created. Routing
+      // through /auth/callback (the same route Google OAuth already uses)
+      // means confirmation goes through exchangeCodeForSession() and the
+      // same first-time-user workspace bootstrap logic. That fallback names
+      // the workspace from the email prefix rather than the workspaceName
+      // typed on this form, since that value isn't available by the time a
+      // separate confirmation-link request comes in — an acceptable
+      // trade-off already accepted for first-time Google sign-ins.
+      //
+      // This redirect target must be present in Supabase's Redirect URLs
+      // allow-list (Authentication -> URL Configuration) or Supabase will
+      // reject/ignore it — see progress/modules/5.1-auth-and-account.md.
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+    },
   });
 
   if (error) {
@@ -95,9 +114,7 @@ export async function signUpAction(formData: FormData): Promise<void> {
 
   if (!data.user) {
     console.error("signUp returned no error but no user either", { data });
-    redirect(
-      `/sign-up?error=${encodeURIComponent("Sign-up did not complete. Please try again.")}`,
-    );
+    redirect(`/sign-up?error=${encodeURIComponent("Sign-up did not complete. Please try again.")}`);
   }
 
   console.error("signUp result", {
