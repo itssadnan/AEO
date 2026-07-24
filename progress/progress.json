@@ -173,7 +173,7 @@
       "phase": "1",
       "specSection": "5.1",
       "status": "in_review",
-      "percentComplete": 99,
+      "percentComplete": 95,
       "dependsOn": [
         "0.0"
       ],
@@ -205,7 +205,7 @@
       "acceptanceCriteria": [
         {
           "text": "Email + Google OAuth signup/login working",
-          "done": true
+          "done": false
         },
         {
           "text": "Workspace (org) model: a workspace can contain multiple brands",
@@ -243,7 +243,7 @@
       "cachingNotes": "Session/JWT caching handled by the Supabase client SDK — no custom caching needed here.",
       "securityNotes": "This module sets the RLS pattern every later module must copy. Write the cross-tenant-denied test here first, reuse it as a template.",
       "lastUpdated": "2026-07-24",
-      "lastUpdatedBy": "Claude (committed the pending duplicate-email fix as 81cc1d4; set up SSH deploy-key push access)",
+      "lastUpdatedBy": "Claude (pushed 81cc1d4+3c6e19e, Vercel redeployed clean; live click-through found Google OAuth disabled on Supabase)",
       "decisionsLog": [
         {
           "date": "2026-07-23",
@@ -316,11 +316,16 @@
         {
           "date": "2026-07-24",
           "text": "(Later session, same day.) Duplicate-email fix actually committed as 81cc1d4 (previous entry's 'committed locally' claim was inaccurate — git status/git diff showed it was still uncommitted when this session picked the module back up). Also, per user's request, set up direct git push from the sandbox: SSH deploy key generated inside .git/ (never tracked), repo-local core.sshCommand routes over ssh.github.com:443 (plain port 22 is blocked by the sandbox network allowlist, 443 isn't), remote switched to the SSH URL. SSH transport verified reaching GitHub (correctly rejected with 'Permission denied (publickey)' since the public key isn't registered yet). Waiting on user to add the public key to the repo's Deploy keys with write access, then push + Vercel redeploy + re-verify the click-through. Also asked user about the account-enumeration trade-off in the new error message — user chose to keep the specific 'account already exists' message."
+        },
+        {
+          "date": "2026-07-24",
+          "text": "(Same day, key registered.) User added the SSH deploy public key to GitHub. Pushed 81cc1d4+3c6e19e to origin/main; Vercel auto-deployed to production and reached READY. Ran the live click-through via Claude in Chrome. Findings: (1) fresh signup blocked by Supabase's own free-tier email-send rate limit (429 'email rate limit exceeded') -- pre-existing, already tracked in LEFT_FOR_FINAL_TOUCHES.md, confirmed via execute_sql that no orphaned row was left behind; (2) sign-in with the one available (browser-autofilled) credential set was rejected -- confirmed via Supabase auth logs (delegated to a subagent, logs too large for direct reading) that this was a genuine 400 invalid_credentials, not a bug, but it doesn't prove a successful sign-in either since the password may be stale; (3) Google OAuth is broken on the live project -- clicking 'Continue with Google' correctly builds the redirect but Supabase itself returns 400 'Unsupported provider: provider is not enabled', contradicting the earlier claim it was configured. Un-checked that acceptance criterion. Net result: the code fix is live and its failure paths behave correctly, but this module is not done -- one real regression (Google provider disabled) plus two checks still environmentally blocked."
         }
       ],
       "blockers": [
-        "FIX NOW COMMITTED (81cc1d4), NOT YET PUSHED/DEPLOYED: signUpAction() pre-checks for an existing normalized-email identity before calling Supabase's signUp(), fixing the raw 500 crash found 2026-07-24. Push is pending the user registering the sandbox's SSH deploy public key on GitHub (Settings -> Deploy keys, write access) — see progress/modules/5.1-auth-and-account.md Blockers for the key and exact steps. Once pushed and redeployed, re-run the full signup -> sign-in -> Google OAuth click-through. This is the only item left before this module can move to done.",
-        "Not yet re-verified this session: sign-in with an existing confirmed account, and the Google OAuth button — both were next on the list when the sign-up crash was found and took priority to fix first."
+        "NEW: Google OAuth is not enabled on the live Supabase project (confirmed via a live click-through returning 'provider is not enabled') -- contradicts the earlier claim this was configured. Needs the user to check Supabase Dashboard -> Authentication -> Providers -> Google. Not an app-code bug.",
+        "Fresh-signup click-through is blocked by Supabase's own email-send rate limit (429), a pre-existing/already-tracked issue (see LEFT_FOR_FINAL_TOUCHES.md), not caused by the 81cc1d4 fix. Needs the rate-limit window to clear or real SMTP configured.",
+        "Sign-in has not been proven successful -- the one attempt used a possibly-stale browser-autofilled password and was correctly rejected (verified via auth logs: genuine invalid_credentials, not a bug). Needs one pass with a password known to be correct, ideally paired with the next fresh-signup test."
       ],
       "detailFile": "progress/modules/5.1-auth-and-account.md"
     },
