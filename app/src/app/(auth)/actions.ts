@@ -47,12 +47,25 @@ export async function signUpAction(formData: FormData): Promise<void> {
   });
 
   if (error) {
+    console.error("signUp failed", {
+      status: error.status,
+      code: error.code,
+      message: error.message,
+    });
     redirect(`/sign-up?error=${encodeURIComponent(error.message)}`);
+  }
+
+  if (!data.user) {
+    console.error("signUp returned no error but no user either", { data });
+    redirect(
+      `/sign-up?error=${encodeURIComponent("Sign-up did not complete. Please try again.")}`,
+    );
   }
 
   if (data.user) {
     const result = await createWorkspace(supabase, { name: parsed.data.workspaceName });
     if ("error" in result) {
+      console.error("createWorkspace failed", result);
       redirect(`/sign-up?error=${encodeURIComponent(result.message)}`);
     }
   }
@@ -76,6 +89,11 @@ export async function signInAction(formData: FormData): Promise<void> {
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {
+    console.error("signInWithPassword failed", {
+      status: error.status,
+      code: error.code,
+      message: error.message,
+    });
     redirect(`/sign-in?error=${encodeURIComponent("Invalid email or password")}`);
   }
 
@@ -84,14 +102,24 @@ export async function signInAction(formData: FormData): Promise<void> {
 
 export async function signInWithGoogleAction(): Promise<void> {
   const supabase = await createSupabaseServerClient();
+  const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`;
+  console.error("signInWithGoogle redirectTo", {
+    redirectTo,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+  });
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      redirectTo,
     },
   });
 
   if (error || !data.url) {
+    console.error("signInWithOAuth failed", {
+      status: error?.status,
+      code: error?.code,
+      message: error?.message,
+    });
     redirect(`/sign-in?error=${encodeURIComponent("Google sign-in failed to start")}`);
   }
 
