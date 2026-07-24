@@ -243,7 +243,7 @@
       "cachingNotes": "Session/JWT caching handled by the Supabase client SDK — no custom caching needed here.",
       "securityNotes": "This module sets the RLS pattern every later module must copy. Write the cross-tenant-denied test here first, reuse it as a template.",
       "lastUpdated": "2026-07-24",
-      "lastUpdatedBy": "Claude (final click-through session — found and fixed signup duplicate-email crash)",
+      "lastUpdatedBy": "Claude (committed the pending duplicate-email fix as 81cc1d4; set up SSH deploy-key push access)",
       "decisionsLog": [
         {
           "date": "2026-07-23",
@@ -311,11 +311,15 @@
         },
         {
           "date": "2026-07-24",
-          "text": "Fixed in app/src/app/(auth)/actions.ts: signUpAction() now queries user_profiles (via the service-role client, since user_profiles has no anon select policy) for an existing row matching normalizeEmail(email) before ever calling supabase.auth.signUp(). If found, redirects with a clean 'An account already exists for this email. Sign in instead.' message instead of attempting a doomed signUp() call. Documented as a best-effort check, not a lock — a rare concurrent-signup race could still slip through to the same crash, but the DB unique constraint remains the real backstop for data integrity either way. Verified with `npx tsc --noEmit` (clean). This fix is committed locally in the mounted working directory but NOT yet pushed or deployed — this sandbox has read-only git remote access (git ls-remote works, git push fails with 'could not read Username for github.com': no credentials), consistent with every other code change this session. User needs to commit, push, and redeploy (same process as every prior fix this session) before the full signup flow can be re-verified end-to-end. Sign-in and Google OAuth were not yet re-tested this pass since sign-up itself blocked first — both still need a pass once this deploys. Module remains in_review, not done."
+          "text": "Fixed in app/src/app/(auth)/actions.ts: signUpAction() now queries user_profiles (via the service-role client, since user_profiles has no anon select policy) for an existing row matching normalizeEmail(email) before ever calling supabase.auth.signUp(). If found, redirects with a clean 'An account already exists for this email. Sign in instead.' message instead of attempting a doomed signUp() call. Documented as a best-effort check, not a lock — a rare concurrent-signup race could still slip through to the same crash, but the DB unique constraint remains the real backstop for data integrity either way. Verified with `npx tsc --noEmit` (clean). NOTE (2026-07-25): despite what this entry originally claimed, the fix was NOT actually committed at the time — it was still an uncommitted working-tree edit. See the 2026-07-25 entry below."
+        },
+        {
+          "date": "2026-07-24",
+          "text": "(Later session, same day.) Duplicate-email fix actually committed as 81cc1d4 (previous entry's 'committed locally' claim was inaccurate — git status/git diff showed it was still uncommitted when this session picked the module back up). Also, per user's request, set up direct git push from the sandbox: SSH deploy key generated inside .git/ (never tracked), repo-local core.sshCommand routes over ssh.github.com:443 (plain port 22 is blocked by the sandbox network allowlist, 443 isn't), remote switched to the SSH URL. SSH transport verified reaching GitHub (correctly rejected with 'Permission denied (publickey)' since the public key isn't registered yet). Waiting on user to add the public key to the repo's Deploy keys with write access, then push + Vercel redeploy + re-verify the click-through. Also asked user about the account-enumeration trade-off in the new error message — user chose to keep the specific 'account already exists' message."
         }
       ],
       "blockers": [
-        "FIX COMMITTED LOCALLY, NOT YET DEPLOYED: signUpAction() now pre-checks for an existing normalized-email identity before calling Supabase's signUp(), fixing the raw 500 crash found 2026-07-24 (see decisions log). User needs to commit/push and redeploy, then the full signup -> sign-in -> Google OAuth click-through needs to be re-run. This is the only item left before this module can move to done.",
+        "FIX NOW COMMITTED (81cc1d4), NOT YET PUSHED/DEPLOYED: signUpAction() pre-checks for an existing normalized-email identity before calling Supabase's signUp(), fixing the raw 500 crash found 2026-07-24. Push is pending the user registering the sandbox's SSH deploy public key on GitHub (Settings -> Deploy keys, write access) — see progress/modules/5.1-auth-and-account.md Blockers for the key and exact steps. Once pushed and redeployed, re-run the full signup -> sign-in -> Google OAuth click-through. This is the only item left before this module can move to done.",
         "Not yet re-verified this session: sign-in with an existing confirmed account, and the Google OAuth button — both were next on the list when the sign-up crash was found and took priority to fix first."
       ],
       "detailFile": "progress/modules/5.1-auth-and-account.md"
