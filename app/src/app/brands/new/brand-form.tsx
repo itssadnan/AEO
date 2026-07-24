@@ -1,7 +1,16 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { PROMPT_LIMIT_BY_PLAN_TIER, type PlanTier } from "@/modules/brand-config";
+// Type-only import: erased entirely at compile time, so this creates no
+// runtime dependency on the module barrel and pulls nothing (including
+// gemini.ts's "server-only" chain) into the client bundle. Do NOT change
+// this to a value import of anything from @/modules/brand-config here --
+// that's exactly what broke the Vercel production build on 2026-07-24
+// (Turbopack correctly refused to bundle "server-only" code into a Client
+// Component). Any value this component needs from that module (e.g.
+// PROMPT_LIMIT_BY_PLAN_TIER) must be computed server-side in page.tsx and
+// passed down as a plain prop instead, the way `limit` is below.
+import type { PlanTier } from "@/modules/brand-config";
 import { createBrandAction, suggestPromptsAction } from "./actions";
 
 /**
@@ -12,9 +21,17 @@ import { createBrandAction, suggestPromptsAction } from "./actions";
  * (private.enforce_prompt_plan_rules), not this component. If this ever
  * disagrees with the trigger, the trigger wins.
  */
-export function BrandForm({ workspaceId, planTier }: { workspaceId: string; planTier: PlanTier }) {
+export function BrandForm({
+  workspaceId,
+  planTier,
+  limit,
+}: {
+  workspaceId: string;
+  planTier: PlanTier;
+  /** PROMPT_LIMIT_BY_PLAN_TIER[planTier], computed server-side in page.tsx -- see the import comment above for why this isn't computed here. */
+  limit: number;
+}) {
   const isFree = planTier === "free";
-  const limit = PROMPT_LIMIT_BY_PLAN_TIER[planTier];
 
   const [name, setName] = useState("");
   const [website, setWebsite] = useState("");

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/db";
-import type { PlanTier } from "@/modules/brand-config";
+import { PROMPT_LIMIT_BY_PLAN_TIER, type PlanTier } from "@/modules/brand-config";
 import { BrandForm } from "./brand-form";
 
 /**
@@ -63,6 +63,11 @@ export default async function NewBrandPage() {
   }
 
   const planTier = (workspace.plan_tier as PlanTier) ?? "free";
+  // Computed here (Server Component) rather than in BrandForm, so the
+  // client bundle never needs a runtime import from @/modules/brand-config
+  // at all -- see the limit prop's doc-comment on BrandForm for why that
+  // matters (a Turbopack build failure this caused, fixed 2026-07-24).
+  const limit = PROMPT_LIMIT_BY_PLAN_TIER[planTier];
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 py-24">
@@ -72,7 +77,7 @@ export default async function NewBrandPage() {
           Workspace: {workspace.name} ({planTier} plan)
         </p>
       </div>
-      <BrandForm workspaceId={workspace.id} planTier={planTier} />
+      <BrandForm workspaceId={workspace.id} planTier={planTier} limit={limit} />
     </div>
   );
 }
