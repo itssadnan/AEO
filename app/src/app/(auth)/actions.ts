@@ -62,7 +62,25 @@ export async function signUpAction(formData: FormData): Promise<void> {
     );
   }
 
-  if (data.user) {
+  console.error("signUp result", {
+    hasUser: Boolean(data.user),
+    hasSession: Boolean(data.session),
+    identitiesCount: data.user?.identities?.length,
+  });
+
+  // If email confirmation is required, signUp() succeeds but returns no
+  // session — the caller isn't authenticated yet, so an RLS-protected RPC
+  // like create_workspace would fail (executed as `anon`, not
+  // `authenticated`). Defer workspace creation until the user actually
+  // confirms and signs in, rather than attempting it now and swallowing a
+  // confusing permission error.
+  if (data.user && !data.session) {
+    redirect(
+      `/sign-up?error=${encodeURIComponent("Check your email to confirm your account before signing in.")}`,
+    );
+  }
+
+  if (data.user && data.session) {
     const result = await createWorkspace(supabase, { name: parsed.data.workspaceName });
     if ("error" in result) {
       console.error("createWorkspace failed", result);
