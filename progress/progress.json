@@ -348,8 +348,8 @@
       "name": "Brand / Prompt Configuration",
       "phase": "1",
       "specSection": "5.2",
-      "status": "not_started",
-      "percentComplete": 0,
+      "status": "done",
+      "percentComplete": 100,
       "dependsOn": [
         "5.1"
       ],
@@ -357,33 +357,57 @@
         "5.3"
       ],
       "owner": "unassigned",
-      "filesTouched": [],
+      "filesTouched": [
+        "app/supabase/migrations/0005_brand_prompt_configuration.sql",
+        "app/supabase/migrations/0006_create_brand_with_details_rpc.sql",
+        "app/src/types/database.ts",
+        "app/src/modules/brand-config/schemas.ts",
+        "app/src/modules/brand-config/gemini.ts",
+        "app/src/modules/brand-config/brand.ts",
+        "app/src/modules/brand-config/index.ts",
+        "app/src/app/brands/new/actions.ts",
+        "app/src/app/brands/new/brand-form.tsx",
+        "app/src/app/brands/new/page.tsx",
+        "app/tests/unit/brand-config-schemas.test.ts"
+      ],
       "acceptanceCriteria": [
         {
           "text": "Manual entry: brand name, website, competitor names",
-          "done": false
+          "done": true
         },
         {
           "text": "AI-assisted prompt suggestion: one Gemini call proposes 20-30 prompts from the brand's site/industry",
-          "done": false
+          "done": true
         },
         {
-          "text": "Free-plan workspaces: prompt list is auto-selected from the AI suggestions and fixed — not editable (exact default count deferred to implementation, kept low relative to Starter's floor); customization is a paid-only capability",
-          "done": false
+          "text": "Free-plan workspaces: prompt list is auto-selected from the AI suggestions and fixed — not editable. Default chosen: 10 (see decisions log)",
+          "done": true
         },
         {
-          "text": "Paid-plan workspaces: full edit/add/remove on the prompt list, up to plan-tier prompt-count limits enforced server-side (Starter 15-25, Growth 50-75, Agency fair-use), not just hidden in the UI",
-          "done": false
+          "text": "Paid-plan workspaces: full edit/add/remove on the prompt list, up to plan-tier prompt-count limits enforced server-side (chosen: Starter 25, Growth 75, Agency 200 fair-use — top of each spec range, enforced per-brand not per-workspace, see decisions log), not just hidden in the UI — real gate is a DB trigger, not app code",
+          "done": true
         }
       ],
       "cachingNotes": "Not cached — this is low-frequency, user-driven write traffic.",
-      "securityNotes": "Treat all user-entered prompt/brand text as untrusted; validate with zod and never interpolate raw into a system-level instruction to any AI call.",
-      "lastUpdated": "2026-07-23",
-      "lastUpdatedBy": null,
+      "securityNotes": "Treat all user-entered prompt/brand text as untrusted; validate with zod and never interpolate raw into a system-level instruction to any AI call. Real enforcement of plan-tier limits/Free-plan immutability is the private.enforce_prompt_plan_rules() DB trigger, not the zod schema (UX pre-check only).",
+      "lastUpdated": "2026-07-24",
+      "lastUpdatedBy": "Claude (5.2 build + verification session)",
       "decisionsLog": [
         {
           "date": "2026-07-23",
           "text": "Free-plan workspaces get a fixed, non-editable prompt list; prompt customization becomes a paid-only capability. Part of the wider Free-plan redesign (3 lifetime on-demand experiments, then locked) — see progress/modules/5.9-billing-and-subscription.md decisions log for the full reasoning."
+        },
+        {
+          "date": "2026-07-24",
+          "text": "Chose concrete numbers within the spec's stated ranges: Free=10, Starter=25 (top of 15-25), Growth=75 (top of 50-75), Agency=200 (concrete number for spec's undefined 'fair-use'). Enforced per-brand, not per-workspace — an interpretive call since the spec doesn't specify and a workspace can hold multiple brands; per-brand reads more consistent with the multi-brand agency use case. Full reasoning in progress/modules/5.2-brand-prompt-configuration.md decisions log."
+        },
+        {
+          "date": "2026-07-24",
+          "text": "create_brand_with_details() RPC written SECURITY INVOKER (not DEFINER like 5.1's create_workspace) since real client-facing INSERT policies already exist on brands/competitors/prompts — the RPC only makes a 3-table insert atomic, no privilege escalation needed. suggestPrompts() calls the Gemini REST API directly, bypassing the not-yet-built 5.3 AIProvider/resolveTaskModel() abstraction deliberately, since this is a one-off onboarding call, not a recurring scheduled query — module-boundary rule in docs/CONVENTIONS.md Section 1."
+        },
+        {
+          "date": "2026-07-24",
+          "text": "Verified: tsc --noEmit clean, prettier clean, 26/26 unit tests passing (14 new), live Gemini API smoke test returned 25 well-formed prompts for a real brand. get_advisors run after both migrations: no new security findings from this module's own objects; found auth_rls_initplan performance WARN on the 4 new RLS policies (same pre-existing pattern as 5.1's policies, not a new defect) and the pre-existing auth_leaked_password_protection WARN — both logged in progress/LEFT_FOR_FINAL_TOUCHES.md rather than fixed inline (fixing the RLS pattern touches 5.1's already-done policies and deserves its own migration + re-test pass). Committed as 966cb69, pushed to origin/main."
         }
       ],
       "blockers": [],
