@@ -431,7 +431,7 @@
       "phase": "1",
       "specSection": "5.3",
       "status": "in_progress",
-      "percentComplete": 95,
+      "percentComplete": 98,
       "dependsOn": [
         "5.2"
       ],
@@ -442,7 +442,7 @@
         "5.11"
       ],
       "owner": "unassigned",
-      "filesTouched": ["app/supabase/migrations/0007_engine_query_engine.sql", "app/supabase/migrations/0008_engine_query_indexes.sql", "app/supabase/migrations/0009_engine_query_hardening.sql", "app/supabase/migrations/0010_engine_worker_cron.sql", "app/supabase/migrations/0011_drop_legacy_retry_overload.sql", "app/supabase/functions/engine-worker/index.ts", "app/supabase/functions/_shared/*.ts", "app/src/lib/ai-providers/*", "app/src/modules/engine-query/*", "app/src/types/database.ts", "app/tests/unit/engine-query-provider.test.ts", "app/.env.example", "app/tsconfig.json", "app/package.json", "AGENTS.md"],
+      "filesTouched": ["app/supabase/migrations/0007_engine_query_engine.sql", "app/supabase/migrations/0008_engine_query_indexes.sql", "app/supabase/migrations/0009_engine_query_hardening.sql", "app/supabase/migrations/0010_engine_worker_cron.sql", "app/supabase/migrations/0011_drop_legacy_retry_overload.sql", "app/supabase/migrations/0012_update_grounded_search_model.sql", "app/supabase/functions/engine-worker/index.ts", "app/supabase/functions/_shared/*.ts", "app/src/lib/ai-providers/*", "app/src/modules/engine-query/*", "app/src/types/database.ts", "app/tests/unit/engine-query-provider.test.ts", "app/.env.example", "app/tsconfig.json", "app/package.json", "AGENTS.md"],
       "acceptanceCriteria": [
         {
           "text": "AIProvider interface defined; GeminiProvider is the only implementation for now",
@@ -537,9 +537,13 @@
         {
           "date": "2026-07-25",
           "text": "All 10 bugs fixed and re-verified independently (tsc clean, prettier clean, 30/30 tests genuinely passing this time). Applied migration 0009 live. Inserted the real engine_worker_secret into Supabase Vault via a one-off execute_sql call (not apply_migration, which retains SQL text permanently in supabase_migrations.schema_migrations). Applied migration 0010 (pg_cron/pg_net schedule, references the Vault secret by name only). Deployed the engine-worker Edge Function live (version 1, ACTIVE, verify_jwt: false). Found and fixed an 11th bug while verifying the deploy: migration 0009 adding a p_provider parameter created a second retry_or_fail_check_job overload instead of replacing the original, leaving the old hardcoded-'gemini' version still live and callable — fixed via migration 0011. Regenerated app/src/types/database.ts from the live schema. Committed everything (code was previously entirely uncommitted despite earlier entries implying otherwise). percentComplete moved 80 -> 95; genuinely not 100 until the one remaining manual step (user sets ENGINE_WORKER_SECRET + Gemini key(s) as Edge Function secrets — no MCP tool exposes this) is done and a live smoke test confirms a real check_runs row. See module file for the full per-bug breakdown."
+        },
+        {
+          "date": "2026-07-25",
+          "text": "User set ENGINE_WORKER_SECRET and GEMINI_API_KEY_PRIMARY as Edge Function secrets. Live smoke test (throwaway workspace/brand/prompt/check_job) found and fixed 2 more real bugs: (11) engine-worker's rpc() helper unconditionally called response.json(), but PostgREST returns 204 No Content for the returns void functions (retry_or_fail_check_job, complete_check_job) — parsing the empty body threw inside the per-job catch, escaping it and turning an already-handled failure into an unhandled 500 for the whole invocation even though the DB write itself succeeded; (12) the seeded grounded_search model (gemini-2.5-flash-lite) is dead — Google deprecated the 2.5 family ahead of schedule, confirmed via a real 404 through this exact worker — updated to gemini-3.5-flash-lite (current GA model, same generateContent endpoint) via migration 0012. Both fixes verified live against the real Gemini API: the worker now reaches Gemini for real and correctly handles a genuine 429 rate-limit response (not mocked) through the full retry/backoff path. A fully successful check_runs row is expected on the next pg_cron tick once quota recovers from this session's own test traffic; not yet manually re-confirmed. percentComplete moved 95 -> 98."
         }
       ],
-      "blockers": ["The only remaining step is manual and cannot be done via any available tool: set ENGINE_WORKER_SECRET and at least GEMINI_API_KEY_PRIMARY as Supabase Edge Function secrets (Dashboard -> Project Settings -> Edge Functions -> engine-worker -> Secrets). Value shared with the user directly in chat, not committed. Then run one live smoke test (real check_jobs row reaches a populated check_runs row) before moving to in_review."],
+      "blockers": [],
       "detailFile": "progress/modules/5.3-engine-query-engine.md"
     },
     {
