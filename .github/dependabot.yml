@@ -5,6 +5,16 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    ignore:
+      # TypeScript 7.x (native/Corsa rewrite) isn't supported yet by this
+      # project's toolchain: Next.js 16.2.11's own build-time TS integration
+      # fails outright ("It looks like you're trying to use TypeScript but do
+      # not have the required package(s) installed" -- Vercel deployment
+      # dpl_Bv3ZgvkXmcyAqHM6yXvVifcwG5jG, 2026-07-26), and typescript-eslint
+      # 8.65.0 explicitly requires typescript ">=4.8.4 <6.1.0" as a peer dep.
+      # Re-allow this once Next.js and typescript-eslint both support TS 7.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
