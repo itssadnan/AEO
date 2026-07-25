@@ -49,7 +49,20 @@ async function rpc<T>(name: string, body: Record<string, unknown>): Promise<T> {
     body: JSON.stringify(body),
   });
   if (!response.ok) throw new Error(`${name} failed: ${response.status}`);
-  return (await response.json()) as T;
+  // PostgREST returns 204 No Content (empty body) for `returns void` functions
+  // (retry_or_fail_check_job, complete_check_job) unless a `Prefer:
+  // return=representation` header is sent, which this helper doesn't send.
+  // `.json()` on an empty body throws "Unexpected end of JSON input" --
+  // found live during the 5.3 smoke test (2026-07-25): the per-job
+  // try/catch in processJobWithStagger correctly caught the provider
+  // failure and called retry_or_fail_check_job, which updated the DB row
+  // correctly, but then THIS bug threw while parsing that void RPC's empty
+  // response, escaping the per-job catch entirely and turning a handled
+  // failure into an unhandled 500 for the whole invocation.
+  if (response.status === 204) return undefined as T;
+  const text = await response.text();
+  if (!text) return undefined as T;
+  return JSON.parse(text) as T;
 }
 
 async function select<T>(path: string): Promise<T> {
