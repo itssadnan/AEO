@@ -1,0 +1,11 @@
+-- Follow-up to 0013: enqueue_extraction_for_check_run() is a SECURITY DEFINER
+-- trigger function, only ever meant to run via the check_runs_enqueue_extraction
+-- trigger. 0013 revoked/granted the other four check_extractions functions but
+-- missed this one, so PostgREST still exposed it as a callable RPC to anon and
+-- authenticated (flagged by get_advisors, 2026-07-25, during independent
+-- verification of Module 5.4 after live deploy). Calling it directly outside
+-- trigger context would error on the unassigned `new` record, so this isn't
+-- believed to be exploitable for data manipulation, but it should be locked
+-- down the same as its siblings for defense in depth and to match the pattern
+-- already established in migration 0013.
+revoke all on function public.enqueue_extraction_for_check_run() from public, anon, authenticated;
