@@ -8,8 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node --test",
-    "test:watch": "node --test --watch",
+    "test": "node --conditions=react-server --test tests/unit/*.test.ts",
+    "test:watch": "node --conditions=react-server --test --watch tests/unit/*.test.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

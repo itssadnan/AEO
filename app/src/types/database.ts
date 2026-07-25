@@ -1,7 +1,8 @@
 // Generated via Supabase MCP `generate_typescript_types` against the live
-// project (vloradmcvozmhvvxiyvd) after 0001-0006 were applied (adds
-// brands/competitors/prompts from Module 5.2's 0005 and
-// 0006_create_brand_with_details_rpc.sql). Regenerate the same way after
+// project (vloradmcvozmhvvxiyvd) after 0001-0011 were applied (adds
+// ai_task_configs/ai_provider_key_health/ai_provider_settings from Module
+// 5.3, and the single-overload retry_or_fail_check_job signature after
+// 0011 dropped the stale 3-arg version). Regenerate the same way after
 // every future migration — do not hand-edit table shapes here again.
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
@@ -13,6 +14,95 @@ export type Database = {
   };
   public: {
     Tables: {
+      ai_provider_key_health: {
+        Row: {
+          dead_at: string | null;
+          is_dead: boolean;
+          key_slot: string;
+          last_error_code: string | null;
+          provider: string;
+          updated_at: string;
+        };
+        Insert: {
+          dead_at?: string | null;
+          is_dead?: boolean;
+          key_slot: string;
+          last_error_code?: string | null;
+          provider: string;
+          updated_at?: string;
+        };
+        Update: {
+          dead_at?: string | null;
+          is_dead?: boolean;
+          key_slot?: string;
+          last_error_code?: string | null;
+          provider?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      ai_provider_settings: {
+        Row: {
+          failover_mode: string;
+          provider: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          failover_mode?: string;
+          provider: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          failover_mode?: string;
+          provider?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [];
+      };
+      ai_task_configs: {
+        Row: {
+          enabled: boolean;
+          id: string;
+          model: string;
+          provider: string;
+          task_key: string;
+          updated_at: string;
+          updated_by: string | null;
+          workspace_id: string | null;
+        };
+        Insert: {
+          enabled?: boolean;
+          id?: string;
+          model: string;
+          provider: string;
+          task_key: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          workspace_id?: string | null;
+        };
+        Update: {
+          enabled?: boolean;
+          id?: string;
+          model?: string;
+          provider?: string;
+          task_key?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          workspace_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ai_task_configs_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       brands: {
         Row: {
           created_at: string;
@@ -48,6 +138,143 @@ export type Database = {
           },
         ];
       };
+      check_jobs: {
+        Row: {
+          attempts: number;
+          available_at: string;
+          brand_id: string;
+          completed_at: string | null;
+          created_at: string;
+          id: string;
+          last_error_code: string | null;
+          locked_at: string | null;
+          prompt_id: string;
+          source: string;
+          status: string;
+          workspace_id: string;
+        };
+        Insert: {
+          attempts?: number;
+          available_at?: string;
+          brand_id: string;
+          completed_at?: string | null;
+          created_at?: string;
+          id?: string;
+          last_error_code?: string | null;
+          locked_at?: string | null;
+          prompt_id: string;
+          source: string;
+          status?: string;
+          workspace_id: string;
+        };
+        Update: {
+          attempts?: number;
+          available_at?: string;
+          brand_id?: string;
+          completed_at?: string | null;
+          created_at?: string;
+          id?: string;
+          last_error_code?: string | null;
+          locked_at?: string | null;
+          prompt_id?: string;
+          source?: string;
+          status?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "check_jobs_brand_id_fkey";
+            columns: ["brand_id"];
+            isOneToOne: false;
+            referencedRelation: "brands";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "check_jobs_prompt_id_fkey";
+            columns: ["prompt_id"];
+            isOneToOne: false;
+            referencedRelation: "prompts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "check_jobs_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      check_runs: {
+        Row: {
+          brand_id: string;
+          checked_at: string;
+          citations: Json;
+          created_at: string;
+          error_code: string | null;
+          grounding_metadata: Json;
+          id: string;
+          model: string;
+          prompt_id: string;
+          provider: string;
+          raw_answer: string | null;
+          status: string;
+          workspace_id: string;
+        };
+        Insert: {
+          brand_id: string;
+          checked_at?: string;
+          citations?: Json;
+          created_at?: string;
+          error_code?: string | null;
+          grounding_metadata?: Json;
+          id?: string;
+          model: string;
+          prompt_id: string;
+          provider: string;
+          raw_answer?: string | null;
+          status: string;
+          workspace_id: string;
+        };
+        Update: {
+          brand_id?: string;
+          checked_at?: string;
+          citations?: Json;
+          created_at?: string;
+          error_code?: string | null;
+          grounding_metadata?: Json;
+          id?: string;
+          model?: string;
+          prompt_id?: string;
+          provider?: string;
+          raw_answer?: string | null;
+          status?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "check_runs_brand_id_fkey";
+            columns: ["brand_id"];
+            isOneToOne: false;
+            referencedRelation: "brands";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "check_runs_prompt_id_fkey";
+            columns: ["prompt_id"];
+            isOneToOne: false;
+            referencedRelation: "prompts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "check_runs_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       competitors: {
         Row: {
           brand_id: string;
@@ -73,6 +300,44 @@ export type Database = {
             columns: ["brand_id"];
             isOneToOne: false;
             referencedRelation: "brands";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      engine_error_logs: {
+        Row: {
+          created_at: string;
+          error_code: string;
+          id: number;
+          job_id: string | null;
+          key_slot: string | null;
+          provider: string;
+          retryable: boolean;
+        };
+        Insert: {
+          created_at?: string;
+          error_code: string;
+          id?: never;
+          job_id?: string | null;
+          key_slot?: string | null;
+          provider: string;
+          retryable: boolean;
+        };
+        Update: {
+          created_at?: string;
+          error_code?: string;
+          id?: never;
+          job_id?: string | null;
+          key_slot?: string | null;
+          provider?: string;
+          retryable?: boolean;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "engine_error_logs_job_id_fkey";
+            columns: ["job_id"];
+            isOneToOne: false;
+            referencedRelation: "check_jobs";
             referencedColumns: ["id"];
           },
         ];
@@ -215,6 +480,27 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      claim_check_jobs: {
+        Args: { p_limit?: number };
+        Returns: {
+          brand_id: string;
+          job_id: string;
+          prompt_id: string;
+          prompt_text: string;
+          workspace_id: string;
+        }[];
+      };
+      complete_check_job: {
+        Args: {
+          p_citations: Json;
+          p_grounding_metadata: Json;
+          p_job_id: string;
+          p_model: string;
+          p_provider: string;
+          p_raw_answer: string;
+        };
+        Returns: undefined;
+      };
       create_brand_with_details: {
         Args: {
           p_competitor_names: string[];
@@ -230,7 +516,33 @@ export type Database = {
         Args: { p_name: string; p_plan_tier?: string };
         Returns: string;
       };
+      enqueue_due_paid_checks: { Args: { p_limit?: number }; Returns: number };
+      enqueue_free_check: {
+        Args: {
+          p_brand_id: string;
+          p_prompt_id: string;
+          p_workspace_id: string;
+        };
+        Returns: string;
+      };
+      mark_ai_key_dead: {
+        Args: { p_error_code: string; p_key_slot: string; p_provider: string };
+        Returns: undefined;
+      };
       normalize_email: { Args: { p_email: string }; Returns: string };
+      reclaim_stale_check_jobs: {
+        Args: { p_stale_after_minutes?: number };
+        Returns: number;
+      };
+      retry_or_fail_check_job: {
+        Args: {
+          p_error_code: string;
+          p_job_id: string;
+          p_provider?: string;
+          p_retry_after_seconds?: number;
+        };
+        Returns: undefined;
+      };
     };
     Enums: {
       [_ in never]: never;
@@ -249,12 +561,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals;
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals;
 }
@@ -274,13 +586,12 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals;
 }
@@ -299,13 +610,12 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals;
 }
@@ -324,13 +634,12 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals;
 }
@@ -341,13 +650,12 @@ export type Enums<
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    keyof DefaultSchema["CompositeTypes"] | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals;
 }

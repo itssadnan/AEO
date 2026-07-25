@@ -1,0 +1,11 @@
+-- Migration 0009 added a p_provider parameter to retry_or_fail_check_job.
+-- Since that changed the function's argument list (not just a trailing
+-- default on the same signature), Postgres created a second overload
+-- instead of replacing the original -- the old 3-arg version (with its
+-- hardcoded 'gemini' literal, the exact bug 0009 was fixing) was left
+-- behind, unused but callable. Drop it so there's exactly one
+-- retry_or_fail_check_job, matching what the worker actually calls.
+--
+-- Found live in the database (not caught by reading migration 0009's SQL
+-- alone) while verifying the engine-worker deploy, 2026-07-25.
+drop function if exists public.retry_or_fail_check_job(uuid, text, integer);

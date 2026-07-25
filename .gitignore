@@ -8,4 +8,11 @@ app/next-env.d.ts
 app/.env*
 !app/.env.example
 
+# Supabase CLI local state -- created wherever `supabase` is run (should
+# always be app/, since app/supabase/migrations is the real project, but a
+# misfire from the repo root creates a stray top-level supabase/.temp too).
+supabase/.temp/
+app/supabase/.temp/
+
 .DS_Store
+AEO_antigravity.code-workspace
