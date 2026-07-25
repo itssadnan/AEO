@@ -71,7 +71,7 @@ maybeDescribe("5.4 RLS: cross-tenant check_extractions access is denied", () => 
       p_website: "",
       p_competitor_names: [],
       p_prompt_texts: ["Best CRM for small business"],
-      p_prompts_ai_suggested: false,
+      p_prompts_ai_suggested: true,
     });
     if (brandErr || !brandId) throw brandErr ?? new Error("failed to create test brand");
     brandAId = brandId;
