@@ -112,9 +112,7 @@
       "status": "in_review",
       "percentComplete": 95,
       "dependsOn": [],
-      "blocks": [
-        "5.1"
-      ],
+      "blocks": ["5.1"],
       "owner": "unassigned",
       "filesTouched": [
         "app/ (full Next.js project scaffold)",
@@ -178,13 +176,8 @@
       "specSection": "5.1",
       "status": "done",
       "percentComplete": 100,
-      "dependsOn": [
-        "0.0"
-      ],
-      "blocks": [
-        "5.2",
-        "5.9"
-      ],
+      "dependsOn": ["0.0"],
+      "blocks": ["5.2", "5.9"],
       "owner": "unassigned",
       "filesTouched": [
         "app/supabase/migrations/0001_auth_and_workspaces.sql",
@@ -358,12 +351,8 @@
       "specSection": "5.2",
       "status": "done",
       "percentComplete": 100,
-      "dependsOn": [
-        "5.1"
-      ],
-      "blocks": [
-        "5.3"
-      ],
+      "dependsOn": ["5.1"],
+      "blocks": ["5.3"],
       "owner": "unassigned",
       "filesTouched": [
         "app/supabase/migrations/0005_brand_prompt_configuration.sql",
@@ -432,17 +421,27 @@
       "specSection": "5.3",
       "status": "in_progress",
       "percentComplete": 98,
-      "dependsOn": [
-        "5.2"
-      ],
-      "blocks": [
-        "5.4",
-        "5.6",
-        "5.10",
-        "5.11"
-      ],
+      "dependsOn": ["5.2"],
+      "blocks": ["5.4", "5.6", "5.10", "5.11"],
       "owner": "unassigned",
-      "filesTouched": ["app/supabase/migrations/0007_engine_query_engine.sql", "app/supabase/migrations/0008_engine_query_indexes.sql", "app/supabase/migrations/0009_engine_query_hardening.sql", "app/supabase/migrations/0010_engine_worker_cron.sql", "app/supabase/migrations/0011_drop_legacy_retry_overload.sql", "app/supabase/migrations/0012_update_grounded_search_model.sql", "app/supabase/functions/engine-worker/index.ts", "app/supabase/functions/_shared/*.ts", "app/src/lib/ai-providers/*", "app/src/modules/engine-query/*", "app/src/types/database.ts", "app/tests/unit/engine-query-provider.test.ts", "app/.env.example", "app/tsconfig.json", "app/package.json", "AGENTS.md"],
+      "filesTouched": [
+        "app/supabase/migrations/0007_engine_query_engine.sql",
+        "app/supabase/migrations/0008_engine_query_indexes.sql",
+        "app/supabase/migrations/0009_engine_query_hardening.sql",
+        "app/supabase/migrations/0010_engine_worker_cron.sql",
+        "app/supabase/migrations/0011_drop_legacy_retry_overload.sql",
+        "app/supabase/migrations/0012_update_grounded_search_model.sql",
+        "app/supabase/functions/engine-worker/index.ts",
+        "app/supabase/functions/_shared/*.ts",
+        "app/src/lib/ai-providers/*",
+        "app/src/modules/engine-query/*",
+        "app/src/types/database.ts",
+        "app/tests/unit/engine-query-provider.test.ts",
+        "app/.env.example",
+        "app/tsconfig.json",
+        "app/package.json",
+        "AGENTS.md"
+      ],
       "acceptanceCriteria": [
         {
           "text": "AIProvider interface defined; GeminiProvider is the only implementation for now",
@@ -551,38 +550,47 @@
       "name": "NLP Extraction & Structuring",
       "phase": "2",
       "specSection": "5.4",
-      "status": "not_started",
-      "percentComplete": 0,
-      "dependsOn": [
-        "5.3"
-      ],
-      "blocks": [
-        "5.5"
-      ],
+      "status": "in_progress",
+      "percentComplete": 70,
+      "dependsOn": ["5.3"],
+      "blocks": ["5.5"],
       "owner": "unassigned",
-      "filesTouched": [],
+      "filesTouched": [
+        "app/supabase/migrations/0013_nlp_extraction_and_structuring.sql",
+        "app/supabase/migrations/0014_extraction_worker_cron.sql",
+        "app/supabase/functions/extraction-worker/index.ts",
+        "app/supabase/functions/_shared/nlp-extraction.ts",
+        "app/src/modules/nlp-extraction/schemas.ts",
+        "app/src/modules/nlp-extraction/prompt.ts",
+        "app/src/modules/nlp-extraction/parse-extraction-response.ts",
+        "app/src/modules/nlp-extraction/index.ts",
+        "app/src/lib/ai-providers/errors.ts",
+        "app/tests/unit/nlp-extraction.test.ts",
+        "app/.env.example",
+        "app/package.json"
+      ],
       "acceptanceCriteria": [
         {
           "text": "Model resolved via resolveTaskModel(\"extraction\", workspaceId) against the ai_task_configs table (owned by 5.3) — this module does not hardcode \"nvidia-nim\" or a model string anywhere in its own code",
-          "done": false
+          "done": true
         },
         {
           "text": "NVIDIA NIM call extracts: brand_mentioned, position, reasoning, sentiment, competitor_names_found, cited_domains, cited_domain_types",
-          "done": false
+          "done": true
         },
         {
           "text": "Output validated against a strict zod schema before being written to the DB",
-          "done": false
+          "done": true
         },
         {
           "text": "Runs as a step separate from the Gemini call — does not consume Gemini's grounding quota",
-          "done": false
+          "done": true
         }
       ],
       "cachingNotes": "Not cached — each raw answer is unique per check, so there's nothing to reuse; kept cheap by using the free tier's generous RPM instead.",
-      "securityNotes": "Never trust the model's JSON output as pre-validated; a malformed or off-schema response must be rejected and logged, not written through.",
-      "lastUpdated": "2026-07-23",
-      "lastUpdatedBy": null,
+      "securityNotes": "Never trust the model's JSON output as pre-validated; a malformed or off-schema response must be rejected and logged, not written through. RLS enabled on check_extractions with a workspace-member select policy and no client write policy (service_role only); EXTRACTION_WORKER_SECRET documented as server-only in .env.example. Not yet backed by a live cross-tenant RLS test — see blockers.",
+      "lastUpdated": "2026-07-25",
+      "lastUpdatedBy": "Claude (independent verification of NVIDIA NIM/Kimi K2.6 delegated implementation, per delegate-and-verify skill)",
       "decisionsLog": [
         {
           "date": "2026-07-23",
@@ -591,9 +599,23 @@
         {
           "date": "2026-07-23",
           "text": "Updated to reference the DB-backed ai_task_configs table (not a code file) — allows a custom-plan customer to be pointed at a different model via admin-set override, no code change."
+        },
+        {
+          "date": "2026-07-25",
+          "text": "Full implementation spec written (progress/specs/5.4-nlp-extraction-and-structuring.md), verified against the source docx's Section 5.4 directly. Key architecture calls: extraction runs in its own new extraction-worker Edge Function/cron rather than being folded into the already-stable, 12-bugs-fixed engine-worker; enqueueing is trigger-based off check_runs inserts, not a scan; extraction-worker's infra helpers are a deliberate copy from engine-worker rather than a shared-file refactor, to avoid touching 5.3's live file. Full reasoning in the module file's own decisions log. Status/percentComplete intentionally left unchanged — a spec is not an implementation."
+        },
+        {
+          "date": "2026-07-25",
+          "text": "Implementation delegated to an external model (NVIDIA NIM, Kimi K2.6) against the 2026-07-25 spec, then independently verified per the delegate-and-verify skill rather than trusting the self-report. Verified for real: npx tsc --noEmit passes (0 errors) on the app-side TypeScript; npx prettier --check . is clean; the claimed 17 unit tests in tests/unit/nlp-extraction.test.ts genuinely pass 17/17 (had to fix a sandbox-local esbuild platform mismatch first — the delegate's own run was in a different environment, so this was a real independent re-run, not a re-read of their output); the full existing unit suite still passes except one pre-existing, unrelated failure in engine-query-provider.test.ts (a 'server-only' import issue native to module 5.3's gemini-provider.ts, confirmed via git diff to predate and be untouched by this delegation). Migrations 0013/0014 read cleanly against the live schema (brands.name, competitors.name/brand_id, check_runs.workspace_id/brand_id/prompt_id/raw_answer/citations/status all match); check_extractions has RLS enabled with a workspace-member select policy, no client write policy, and its four RPCs are revoked from public/anon/authenticated and granted only to service_role, matching migration 0007's established pattern. All 4 acceptance criteria confirmed true by direct code reading, not just accepted from the self-report. Two real problems found during verification, both fixed directly rather than sent back: (1) the repo had 5 stray, truncated garbage files (app/src/modules/n, app/src/modules/nlp-ext, app/src/modules/nlp-extraction/prompt, app/sup, app/supabase/functions/extraction) plus a leftover NVIDIA test payload.json at the repo root and an unrelated stale test-user deletion script (delete_orphan_tmp.mjs.stale) — none mentioned in the self-report; all deleted after getting Cowork file-delete permission. (2) A stale, unreleased .git/index.lock was blocking every git operation (add/commit) in the repo; removed, confirmed no npm/git process was actually running. Left unfixed and not attempted: a harmless but real duplicate GroundingCitation/groundingCitationSchema definition in app/src/modules/nlp-extraction/schemas.ts and app/supabase/functions/_shared/nlp-extraction.ts that duplicates the canonical one in app/src/lib/ai-providers/schemas.ts (app-side) and app/supabase/functions/_shared/schemas.ts (Deno-side) — dead code, not a bug, left alone to avoid making unverified edits to files just confirmed passing. percentComplete set to 70, status kept at in_progress (not done, not in_review): this module has zero live-deployment steps done — migrations 0013/0014 have not been applied to the live Supabase project, EXTRACTION_WORKER_SECRET has not been created in Vault or set as an Edge Function secret, extraction-worker has not been deployed, and there has been no live smoke test producing a real check_extractions row — mirroring exactly why 5.3 sat at 98% rather than 100% until its own live smoke test. Additionally, unlike 5.1 (which has tests/integration/auth-rls.test.ts, explicitly written as 'the template every later module's own RLS test should copy') and unlike this same gap already being accepted as open on 5.3, module 5.4 has no cross-tenant RLS test for check_extractions at all yet — this is a real Definition-of-Done gap (docs/progress.json's 'rls' item), not just an environment limitation, and is called out as a blocker below rather than glossed over as the self-report's 'not executable in sandbox' framing implied. Deno-side files (extraction-worker/index.ts, _shared/nlp-extraction.ts) could not be independently typechecked — no deno binary in this sandbox, same limitation 5.3 had; verified by close reading against the already-live engine-worker's proven-working call patterns for resolveTaskModel/runNvidiaNimPrompt instead. This session's local, module-scoped changes were committed separately from the large pile of pre-existing, unrelated uncommitted formatting-only diffs already sitting in this repo (AGENTS.md, CLAUDE.md, docs/*, code-reviews/*, other modules' progress files) — those were left untouched, not folded into this commit."
         }
       ],
-      "blockers": [],
+      "blockers": [
+        "Migrations 0013/0014 not yet applied to the live Supabase project.",
+        "EXTRACTION_WORKER_SECRET not yet created in Supabase Vault or set as an Edge Function secret (same manual step 5.3 required before its live smoke test — no MCP tool can set this).",
+        "extraction-worker Edge Function not yet deployed.",
+        "No live smoke test yet confirming a real check_extractions row end-to-end via NVIDIA NIM.",
+        "No automated cross-tenant RLS test exists for check_extractions (docs/CONVENTIONS.md Section 6 item 1 / progress.json definitionOfDone 'rls') — tests/integration/auth-rls.test.ts is the template to copy; not written yet."
+      ],
       "detailFile": "progress/modules/5.4-nlp-extraction-and-structuring.md"
     },
     {
@@ -603,13 +625,8 @@
       "specSection": "5.5",
       "status": "not_started",
       "percentComplete": 0,
-      "dependsOn": [
-        "5.4"
-      ],
-      "blocks": [
-        "5.8",
-        "5.12"
-      ],
+      "dependsOn": ["5.4"],
+      "blocks": ["5.8", "5.12"],
       "owner": "unassigned",
       "filesTouched": [],
       "acceptanceCriteria": [
@@ -674,9 +691,7 @@
       "specSection": "5.6",
       "status": "not_started",
       "percentComplete": 0,
-      "dependsOn": [
-        "5.3"
-      ],
+      "dependsOn": ["5.3"],
       "blocks": [],
       "owner": "unassigned",
       "filesTouched": [],
@@ -730,12 +745,8 @@
       "specSection": "5.7",
       "status": "not_started",
       "percentComplete": 0,
-      "dependsOn": [
-        "0.0"
-      ],
-      "blocks": [
-        "5.11"
-      ],
+      "dependsOn": ["0.0"],
+      "blocks": ["5.11"],
       "owner": "unassigned",
       "filesTouched": [],
       "acceptanceCriteria": [
@@ -771,9 +782,7 @@
       "specSection": "5.8",
       "status": "not_started",
       "percentComplete": 0,
-      "dependsOn": [
-        "5.5"
-      ],
+      "dependsOn": ["5.5"],
       "blocks": [],
       "owner": "unassigned",
       "filesTouched": [],
@@ -802,9 +811,7 @@
       "specSection": "5.9",
       "status": "not_started",
       "percentComplete": 0,
-      "dependsOn": [
-        "5.1"
-      ],
+      "dependsOn": ["5.1"],
       "blocks": [],
       "owner": "unassigned",
       "filesTouched": [],
@@ -853,9 +860,7 @@
       "specSection": "5.10",
       "status": "not_started",
       "percentComplete": 0,
-      "dependsOn": [
-        "5.3"
-      ],
+      "dependsOn": ["5.3"],
       "blocks": [],
       "owner": "unassigned",
       "filesTouched": [],
@@ -925,13 +930,8 @@
       "specSection": "5.11",
       "status": "not_started",
       "percentComplete": 0,
-      "dependsOn": [
-        "5.3",
-        "5.7"
-      ],
-      "blocks": [
-        "5.12"
-      ],
+      "dependsOn": ["5.3", "5.7"],
+      "blocks": ["5.12"],
       "owner": "unassigned",
       "filesTouched": [],
       "acceptanceCriteria": [
@@ -959,10 +959,7 @@
       "specSection": "5.12",
       "status": "not_started",
       "percentComplete": 0,
-      "dependsOn": [
-        "5.11",
-        "5.5"
-      ],
+      "dependsOn": ["5.11", "5.5"],
       "blocks": [],
       "owner": "unassigned",
       "filesTouched": [],
@@ -999,9 +996,7 @@
       "specSection": "6.3",
       "status": "not_started",
       "percentComplete": 0,
-      "dependsOn": [
-        "5.3"
-      ],
+      "dependsOn": ["5.3"],
       "blocks": [],
       "owner": "unassigned",
       "filesTouched": [],

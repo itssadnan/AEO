@@ -33,6 +33,7 @@
     "json-stable-stringify-without-jsonify": "^1.0.1",
     "prettier": "^3.9.6",
     "tailwindcss": "^4",
+    "tsx": "^4.23.1",
     "typescript": "^5"
   }
 }
