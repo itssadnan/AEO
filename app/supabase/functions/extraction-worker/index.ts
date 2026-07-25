@@ -150,7 +150,7 @@ async function processJobWithStagger(job: Job, index: number): Promise<void> {
     });
 
     // Parse and validate the extraction response
-    const result: ExtractionResult = parseExtractionResponse(rawText);
+    const result: ExtractionResult = parseExtractionResponse(rawText, job.raw_answer);
 
     // Record successful result
     await rpc("complete_extraction", {

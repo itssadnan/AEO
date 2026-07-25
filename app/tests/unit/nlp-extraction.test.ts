@@ -59,6 +59,7 @@ describe("Module 5.4 — NLP Extraction & Structuring", () => {
       });
 
       assert.ok(prompt.includes("brand_mentioned"));
+      assert.ok(prompt.includes("brand_mention_evidence"));
       assert.ok(prompt.includes("position_among_competitors"));
       assert.ok(prompt.includes("reasoning"));
       assert.ok(prompt.includes("sentiment"));
@@ -66,12 +67,29 @@ describe("Module 5.4 — NLP Extraction & Structuring", () => {
       assert.ok(prompt.includes("cited_domains"));
       assert.ok(prompt.includes("cited_domain_types"));
     });
+
+    it("includes STRICT RULES block", () => {
+      const prompt = buildExtractionPrompt({
+        rawAnswer: "Test answer.",
+        brandName: "TestBrand",
+        competitorNames: [],
+        citations: [],
+      });
+
+      assert.ok(prompt.includes("STRICT RULES"));
+      assert.ok(prompt.includes("brand_mentioned"));
+      assert.ok(prompt.includes("competitor_names_found"));
+      assert.ok(prompt.includes("(none listed)"));
+    });
   });
 
   describe("parseExtractionResponse", () => {
-    it("parses valid JSON response", () => {
+    const rawAnswer = "Acme Corp is a great choice for small businesses.";
+
+    it("parses valid JSON response with brand_mention_evidence", () => {
       const raw = `{
         "brand_mentioned": true,
+        "brand_mention_evidence": "Acme Corp",
         "position_among_competitors": 1,
         "reasoning": "The answer mentions Acme first.",
         "sentiment": "positive",
@@ -80,9 +98,10 @@ describe("Module 5.4 — NLP Extraction & Structuring", () => {
         "cited_domain_types": [{"domain": "example.com", "type": "review_site"}]
       }`;
 
-      const result = parseExtractionResponse(raw);
+      const result = parseExtractionResponse(raw, rawAnswer);
 
       assert.equal(result.brand_mentioned, true);
+      assert.equal(result.brand_mention_evidence, "Acme Corp");
       assert.equal(result.position_among_competitors, 1);
       assert.equal(result.reasoning, "The answer mentions Acme first.");
       assert.equal(result.sentiment, "positive");
@@ -95,6 +114,7 @@ describe("Module 5.4 — NLP Extraction & Structuring", () => {
       const raw = `\`\`\`json
 {
   "brand_mentioned": false,
+  "brand_mention_evidence": null,
   "position_among_competitors": null,
   "reasoning": "Brand not mentioned.",
   "sentiment": "neutral",
@@ -104,8 +124,9 @@ describe("Module 5.4 — NLP Extraction & Structuring", () => {
 }
 \`\`\``;
 
-      const result = parseExtractionResponse(raw);
+      const result = parseExtractionResponse(raw, rawAnswer);
       assert.equal(result.brand_mentioned, false);
+      assert.equal(result.brand_mention_evidence, null);
       assert.equal(result.position_among_competitors, null);
     });
 
@@ -113,7 +134,7 @@ describe("Module 5.4 — NLP Extraction & Structuring", () => {
       const raw = `not valid json {`;
 
       assert.throws(
-        () => parseExtractionResponse(raw),
+        () => parseExtractionResponse(raw, rawAnswer),
         (error: Error) =>
           error.name === "AiProviderError" &&
           (error as AiProviderError).code === "malformed_response",
@@ -123,6 +144,7 @@ describe("Module 5.4 — NLP Extraction & Structuring", () => {
     it("throws on schema validation failure (missing required field)", () => {
       const raw = `{
         "brand_mentioned": true,
+        "brand_mention_evidence": "Acme Corp",
         "position_among_competitors": 1,
         "reasoning": "Test",
         "sentiment": "positive",
@@ -132,7 +154,7 @@ describe("Module 5.4 — NLP Extraction & Structuring", () => {
       }`;
 
       assert.throws(
-        () => parseExtractionResponse(raw),
+        () => parseExtractionResponse(raw, rawAnswer),
         (error: Error) =>
           error.name === "AiProviderError" &&
           (error as AiProviderError).code === "malformed_response",
@@ -142,6 +164,7 @@ describe("Module 5.4 — NLP Extraction & Structuring", () => {
     it("throws when brand_mentioned is false but position is not null", () => {
       const raw = `{
         "brand_mentioned": false,
+        "brand_mention_evidence": null,
         "position_among_competitors": 1,
         "reasoning": "Test",
         "sentiment": "neutral",
@@ -151,7 +174,7 @@ describe("Module 5.4 — NLP Extraction & Structuring", () => {
       }`;
 
       assert.throws(
-        () => parseExtractionResponse(raw),
+        () => parseExtractionResponse(raw, rawAnswer),
         (error: Error) =>
           error.name === "AiProviderError" &&
           (error as AiProviderError).code === "malformed_response",
@@ -161,6 +184,7 @@ describe("Module 5.4 — NLP Extraction & Structuring", () => {
     it("accepts brand_mentioned false with position null", () => {
       const raw = `{
         "brand_mentioned": false,
+        "brand_mention_evidence": null,
         "position_among_competitors": null,
         "reasoning": "Brand not mentioned.",
         "sentiment": "neutral",
@@ -169,14 +193,16 @@ describe("Module 5.4 — NLP Extraction & Structuring", () => {
         "cited_domain_types": []
       }`;
 
-      const result = parseExtractionResponse(raw);
+      const result = parseExtractionResponse(raw, rawAnswer);
       assert.equal(result.brand_mentioned, false);
+      assert.equal(result.brand_mention_evidence, null);
       assert.equal(result.position_among_competitors, null);
     });
 
     it("validates sentiment enum", () => {
       const raw = `{
         "brand_mentioned": true,
+        "brand_mention_evidence": "Acme Corp",
         "position_among_competitors": 1,
         "reasoning": "Test",
         "sentiment": "invalid_sentiment",
@@ -186,7 +212,7 @@ describe("Module 5.4 — NLP Extraction & Structuring", () => {
       }`;
 
       assert.throws(
-        () => parseExtractionResponse(raw),
+        () => parseExtractionResponse(raw, rawAnswer),
         (error: Error) =>
           error.name === "AiProviderError" &&
           (error as AiProviderError).code === "malformed_response",
@@ -196,6 +222,7 @@ describe("Module 5.4 — NLP Extraction & Structuring", () => {
     it("validates domain type enum", () => {
       const raw = `{
         "brand_mentioned": true,
+        "brand_mention_evidence": "Acme Corp",
         "position_among_competitors": 1,
         "reasoning": "Test",
         "sentiment": "neutral",
@@ -205,7 +232,67 @@ describe("Module 5.4 — NLP Extraction & Structuring", () => {
       }`;
 
       assert.throws(
-        () => parseExtractionResponse(raw),
+        () => parseExtractionResponse(raw, rawAnswer),
+        (error: Error) =>
+          error.name === "AiProviderError" &&
+          (error as AiProviderError).code === "malformed_response",
+      );
+    });
+
+    it("throws when brand_mentioned is true but brand_mention_evidence does not appear in rawAnswer", () => {
+      const raw = `{
+        "brand_mentioned": true,
+        "brand_mention_evidence": "Nonexistent Brand",
+        "position_among_competitors": 1,
+        "reasoning": "Test",
+        "sentiment": "neutral",
+        "competitor_names_found": [],
+        "cited_domains": [],
+        "cited_domain_types": []
+      }`;
+
+      assert.throws(
+        () => parseExtractionResponse(raw, rawAnswer),
+        (error: Error) =>
+          error.name === "AiProviderError" &&
+          (error as AiProviderError).code === "malformed_response",
+      );
+    });
+
+    it("throws when brand_mentioned is true and brand_mention_evidence is null", () => {
+      const raw = `{
+        "brand_mentioned": true,
+        "brand_mention_evidence": null,
+        "position_among_competitors": 1,
+        "reasoning": "Test",
+        "sentiment": "neutral",
+        "competitor_names_found": [],
+        "cited_domains": [],
+        "cited_domain_types": []
+      }`;
+
+      assert.throws(
+        () => parseExtractionResponse(raw, rawAnswer),
+        (error: Error) =>
+          error.name === "AiProviderError" &&
+          (error as AiProviderError).code === "malformed_response",
+      );
+    });
+
+    it("throws when brand_mentioned is true and brand_mention_evidence is empty string", () => {
+      const raw = `{
+        "brand_mentioned": true,
+        "brand_mention_evidence": "",
+        "position_among_competitors": 1,
+        "reasoning": "Test",
+        "sentiment": "neutral",
+        "competitor_names_found": [],
+        "cited_domains": [],
+        "cited_domain_types": []
+      }`;
+
+      assert.throws(
+        () => parseExtractionResponse(raw, rawAnswer),
         (error: Error) =>
           error.name === "AiProviderError" &&
           (error as AiProviderError).code === "malformed_response",
@@ -217,6 +304,7 @@ describe("Module 5.4 — NLP Extraction & Structuring", () => {
     it("validates a complete valid extraction result", () => {
       const valid: ExtractionResult = {
         brand_mentioned: true,
+        brand_mention_evidence: "Acme Corp",
         position_among_competitors: 2,
         reasoning: "Acme appears after Globex in the answer.",
         sentiment: "neutral",
@@ -235,6 +323,7 @@ describe("Module 5.4 — NLP Extraction & Structuring", () => {
     it("rejects brand_mentioned false with non-null position", () => {
       const invalid = {
         brand_mentioned: false,
+        brand_mention_evidence: null,
         position_among_competitors: 1,
         reasoning: "Test",
         sentiment: "neutral" as const,
@@ -253,6 +342,7 @@ describe("Module 5.4 — NLP Extraction & Structuring", () => {
     it("rejects empty reasoning string", () => {
       const invalid = {
         brand_mentioned: true,
+        brand_mention_evidence: "Acme Corp",
         position_among_competitors: 1,
         reasoning: "",
         sentiment: "neutral" as const,
@@ -268,6 +358,7 @@ describe("Module 5.4 — NLP Extraction & Structuring", () => {
     it("rejects reasoning over 2000 chars", () => {
       const invalid = {
         brand_mentioned: true,
+        brand_mention_evidence: "Acme Corp",
         position_among_competitors: 1,
         reasoning: "x".repeat(2001),
         sentiment: "neutral" as const,
@@ -278,6 +369,44 @@ describe("Module 5.4 — NLP Extraction & Structuring", () => {
 
       const result = extractionResultSchema.safeParse(invalid);
       assert.equal(result.success, false);
+    });
+
+    it("rejects brand_mentioned true with null brand_mention_evidence", () => {
+      const invalid = {
+        brand_mentioned: true,
+        brand_mention_evidence: null,
+        position_among_competitors: 1,
+        reasoning: "Test",
+        sentiment: "neutral" as const,
+        competitor_names_found: [],
+        cited_domains: [],
+        cited_domain_types: [],
+      };
+
+      const result = extractionResultSchema.safeParse(invalid);
+      assert.equal(result.success, false);
+      if (!result.success) {
+        assert.ok(result.error.issues[0].path.includes("brand_mention_evidence"));
+      }
+    });
+
+    it("rejects brand_mentioned true with empty brand_mention_evidence", () => {
+      const invalid = {
+        brand_mentioned: true,
+        brand_mention_evidence: "",
+        position_among_competitors: 1,
+        reasoning: "Test",
+        sentiment: "neutral" as const,
+        competitor_names_found: [],
+        cited_domains: [],
+        cited_domain_types: [],
+      };
+
+      const result = extractionResultSchema.safeParse(invalid);
+      assert.equal(result.success, false);
+      if (!result.success) {
+        assert.ok(result.error.issues[0].path.includes("brand_mention_evidence"));
+      }
     });
 
     it("accepts all valid domain types", () => {
@@ -292,6 +421,7 @@ describe("Module 5.4 — NLP Extraction & Structuring", () => {
       for (const type of validTypes) {
         const valid = {
           brand_mentioned: true,
+          brand_mention_evidence: "Acme Corp",
           position_among_competitors: 1,
           reasoning: "Test",
           sentiment: "neutral" as const,
