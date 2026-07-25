@@ -11,7 +11,7 @@
   "specDoc": "docs/spec/AEO_Visibility_Platform_Spec_v1.1.docx",
   "conventionsDoc": "docs/CONVENTIONS.md",
   "specVersion": "1.1",
-  "lastUpdated": "2026-07-24",
+  "lastUpdated": "2026-07-25",
   "leftForFinalTouches": "progress/LEFT_FOR_FINAL_TOUCHES.md",
   "statusValues": [
     "not_started",
@@ -430,8 +430,8 @@
       "name": "Engine Query Engine",
       "phase": "1",
       "specSection": "5.3",
-      "status": "not_started",
-      "percentComplete": 0,
+      "status": "in_progress",
+      "percentComplete": 95,
       "dependsOn": [
         "5.2"
       ],
@@ -442,47 +442,47 @@
         "5.11"
       ],
       "owner": "unassigned",
-      "filesTouched": [],
+      "filesTouched": ["app/supabase/migrations/0007_engine_query_engine.sql", "app/supabase/migrations/0008_engine_query_indexes.sql", "app/supabase/migrations/0009_engine_query_hardening.sql", "app/supabase/migrations/0010_engine_worker_cron.sql", "app/supabase/migrations/0011_drop_legacy_retry_overload.sql", "app/supabase/functions/engine-worker/index.ts", "app/supabase/functions/_shared/*.ts", "app/src/lib/ai-providers/*", "app/src/modules/engine-query/*", "app/src/types/database.ts", "app/tests/unit/engine-query-provider.test.ts", "app/.env.example", "app/tsconfig.json", "app/package.json", "AGENTS.md"],
       "acceptanceCriteria": [
         {
           "text": "AIProvider interface defined; GeminiProvider is the only implementation for now",
-          "done": false
+          "done": true
         },
         {
           "text": "ai_task_configs table + resolveTaskModel(taskKey, workspaceId) resolver owned by this module (global default row + per-workspace override, enabled flag, admin-only RLS — see ERD); no other module hardcodes a provider or model string",
-          "done": false
+          "done": true
         },
         {
           "text": "Queue-based worker pulls due (brand, prompt) pairs and calls Gemini with grounding enabled, resolving its model via resolveTaskModel(\"grounded_search\", workspaceId)",
-          "done": false
+          "done": true
         },
         {
           "text": "Migration seeds global-default rows for all five task keys with the values from spec Section 6",
-          "done": false
+          "done": true
         },
         {
           "text": "Full raw answer + citation list stored per check",
-          "done": false
+          "done": true
         },
         {
           "text": "Throttled to Gemini's current free-tier RPM/RPD caps; checks staggered across the week, not fired all at once",
-          "done": false
+          "done": true
         },
         {
           "text": "Retries with backoff on rate-limit errors; failed checks are requeued, never silently dropped",
-          "done": false
+          "done": true
         },
         {
           "text": "Key pool (primary/secondary/tertiary) implemented for GeminiProvider and NvidiaNimProvider per docs/CONVENTIONS.md — 429 soft-fails to the next key, 401/403 marks that key dead + alerts the Admin Console, never a silent drop",
-          "done": false
+          "done": true
         },
         {
           "text": "Falls back to the standard retry/requeue path if every key in a provider's pool is dead or exhausted",
-          "done": false
+          "done": true
         },
         {
           "text": "Pool supports failoverMode \"shared\" (default; secondary/tertiary absorb 429s) vs \"emergency-only\" (secondary/tertiary called only on hard failures — 401/403/5xx/timeout, never a plain 429); switching is a one-flag change, not a redeploy of logic",
-          "done": false
+          "done": true
         },
         {
           "text": "Admin Console (5.10) surfaces which failoverMode is active per provider and reminds the admin to flip it the moment primary is upgraded (billing enabled for Gemini, or the free 200 RPM increase for NVIDIA NIM)",
@@ -490,17 +490,17 @@
         },
         {
           "text": "Free-plan workspaces never enter the recurring scheduler — checks are triggered on-demand by the user only, gated by workspaces.experiments_used (lifetime cap: 3, never resets); a 4th attempt is blocked outright with an upgrade prompt, never silently queued or allowed",
-          "done": false
+          "done": true
         },
         {
           "text": "An on-demand free-tier check runs through the exact same AIProvider / resolveTaskModel / key-pool path as a paid check — no separate cheaper code path, since it is the same Gemini grounded call either way",
-          "done": false
+          "done": true
         }
       ],
       "cachingNotes": "Paid plans: guard against redundant calls by verifying last_checked_at for that (brand, prompt) pair is older than the plan's check interval before enqueueing — a Postgres timestamp check, not a separate cache service. Free plan: no time-based guard applies (there is no recurring cadence) — instead gated by the workspaces.experiments_used lifetime counter, checked before allowing an on-demand run.",
       "securityNotes": "Gemini key is server-only, called exclusively from this worker, never from a client-reachable route. Log request counts, never prompt/answer content, in any cross-tenant-visible log.",
-      "lastUpdated": "2026-07-23",
-      "lastUpdatedBy": null,
+      "lastUpdated": "2026-07-25",
+      "lastUpdatedBy": "Claude (independent audit, bug-fix, and live-deploy session)",
       "decisionsLog": [
         {
           "date": "2026-07-23",
@@ -525,9 +525,21 @@
         {
           "date": "2026-07-23",
           "text": "Free plan redesigned: 3 lifetime on-demand experiments instead of a recurring weekly cadence. Previously the free tier ran the same recurring scheduler as paid, just weekly instead of daily — this left free-user AI quota consumption open-ended for as long as an account stayed signed up, stacking on top of the multi-key pool risk already accepted. Changed to: a Free-plan workspace gets exactly 3 lifetime on-demand checks (user-triggered, not scheduled), tracked by workspaces.experiments_used (see ERD) and gated here rather than left to the UI. After the 3rd run, 5.5 generates one aggregate report from the 3 data points and no further checks are allowed; 5.6 shows the existing report read-only plus an upgrade CTA. Paid plans are unaffected and keep the full recurring-scheduler behavior. See progress/modules/5.9-billing-and-subscription.md decisions log for the complete before/after reasoning, and 5.5/5.6 for the corresponding Explanation-Engine and dashboard gating."
+        },
+        {
+          "date": "2026-07-24",
+          "text": "Applied migrations 0007/0008: durable queue, raw grounded-result storage, task-model configuration, atomic Free-plan cap, retry/backoff, key-health/error telemetry, and FK indexes. Added Gemini/NVIDIA pooled-key adapters and a protected Edge worker source. Production activation remains incomplete until ENGINE_WORKER_SECRET is set as an Edge Function and Vault secret, the function is deployed, and pg_cron/pg_net is configured; this cannot safely be bypassed with an unauthenticated worker. Typecheck and Prettier passed."
+        },
+        {
+          "date": "2026-07-25",
+          "text": "User asked for an independent audit of the above (this session's implementation had been done by other tools/models and stopped early due to taking too long); user explicitly wanted the self-report verified, not trusted. Found 10 real bugs via direct file reads, live DB queries, and actually running tsc/prettier/tests (self-report's '30/30 passing' was false — one test file crashed the process outright; several other specific claims, e.g. a 'check_results' table and 0-30s staggering, didn't match the real code either). Full list and reasoning: progress/modules/5.3-engine-query-engine.md decisions log, 2026-07-24/2026-07-25 entries. Verdict: fix in place, not a rewrite — user chose 'fix the bugs, then deploy'."
+        },
+        {
+          "date": "2026-07-25",
+          "text": "All 10 bugs fixed and re-verified independently (tsc clean, prettier clean, 30/30 tests genuinely passing this time). Applied migration 0009 live. Inserted the real engine_worker_secret into Supabase Vault via a one-off execute_sql call (not apply_migration, which retains SQL text permanently in supabase_migrations.schema_migrations). Applied migration 0010 (pg_cron/pg_net schedule, references the Vault secret by name only). Deployed the engine-worker Edge Function live (version 1, ACTIVE, verify_jwt: false). Found and fixed an 11th bug while verifying the deploy: migration 0009 adding a p_provider parameter created a second retry_or_fail_check_job overload instead of replacing the original, leaving the old hardcoded-'gemini' version still live and callable — fixed via migration 0011. Regenerated app/src/types/database.ts from the live schema. Committed everything (code was previously entirely uncommitted despite earlier entries implying otherwise). percentComplete moved 80 -> 95; genuinely not 100 until the one remaining manual step (user sets ENGINE_WORKER_SECRET + Gemini key(s) as Edge Function secrets — no MCP tool exposes this) is done and a live smoke test confirms a real check_runs row. See module file for the full per-bug breakdown."
         }
       ],
-      "blockers": [],
+      "blockers": ["The only remaining step is manual and cannot be done via any available tool: set ENGINE_WORKER_SECRET and at least GEMINI_API_KEY_PRIMARY as Supabase Edge Function secrets (Dashboard -> Project Settings -> Edge Functions -> engine-worker -> Secrets). Value shared with the user directly in chat, not committed. Then run one live smoke test (real check_jobs row reaches a populated check_runs row) before moving to in_review."],
       "detailFile": "progress/modules/5.3-engine-query-engine.md"
     },
     {
