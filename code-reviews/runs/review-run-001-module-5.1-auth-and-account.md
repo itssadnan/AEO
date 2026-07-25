@@ -4,7 +4,7 @@
 **Review Run Number:** 001  
 **Date:** 2026-07-24  
 **QA Lead:** Antigravity (AI QA Lead)  
-**Verdict:** 🟡 NEEDS_REVISION  
+**Verdict:** 🟡 NEEDS_REVISION
 
 ---
 
@@ -18,15 +18,15 @@ However, live execution of the cross-tenant RLS integration suite (`tests/integr
 
 ## 2. Pillar Evaluation Matrix
 
-| Pillar | Status | Findings / Comments |
-|---|---|---|
-| 1. Architecture & Module Encapsulation | 🟢 PASS | Clean separation: `src/modules/auth/` barrel export (`index.ts`), business logic isolated from UI routes in `src/app/(auth)/`. |
-| 2. TypeScript & Zod Validation | 🟢 PASS | Zod schemas in `src/modules/auth/schemas.ts` for inputs; generated Supabase DB types swapped into `src/types/database.ts`. Strict mode clean. |
-| 3. Security, Multi-Tenancy & RLS | 🔴 FAIL | RLS policies on `workspace_members` in Migration `0001` contain direct self-referential subqueries resulting in Postgres infinite recursion (`42P17`). |
-| 4. Caching & Quota Strategy | 🟢 PASS | Auth session caching managed via Supabase Client SDK; rate-limit events stored in Postgres. |
-| 5. Operational Resilience & Error Recovery | 🟢 PASS | `0002_auth_security_hardening.sql` pinned `search_path` on `normalize_email` and restricted RPC execution permissions on `handle_new_user` and `create_workspace`. |
-| 6. Automated Testing | 🟡 WARN | Pure logic unit tests (`auth-email.test.ts`, `auth-permissions.test.ts`) pass (12/12). Integration test `auth-rls.test.ts` ran live but failed 3/4 tests due to RLS recursion; 4th test assertion is too weak. |
-| 7. Tracker & Docs Synchronization | 🟢 PASS | `progress/progress.json` and `progress/modules/5.1-auth-and-account.md` accurately capture root cause, migration details, and decisions log. |
+| Pillar                                     | Status  | Findings / Comments                                                                                                                                                                                            |
+| ------------------------------------------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Architecture & Module Encapsulation     | 🟢 PASS | Clean separation: `src/modules/auth/` barrel export (`index.ts`), business logic isolated from UI routes in `src/app/(auth)/`.                                                                                 |
+| 2. TypeScript & Zod Validation             | 🟢 PASS | Zod schemas in `src/modules/auth/schemas.ts` for inputs; generated Supabase DB types swapped into `src/types/database.ts`. Strict mode clean.                                                                  |
+| 3. Security, Multi-Tenancy & RLS           | 🔴 FAIL | RLS policies on `workspace_members` in Migration `0001` contain direct self-referential subqueries resulting in Postgres infinite recursion (`42P17`).                                                         |
+| 4. Caching & Quota Strategy                | 🟢 PASS | Auth session caching managed via Supabase Client SDK; rate-limit events stored in Postgres.                                                                                                                    |
+| 5. Operational Resilience & Error Recovery | 🟢 PASS | `0002_auth_security_hardening.sql` pinned `search_path` on `normalize_email` and restricted RPC execution permissions on `handle_new_user` and `create_workspace`.                                             |
+| 6. Automated Testing                       | 🟡 WARN | Pure logic unit tests (`auth-email.test.ts`, `auth-permissions.test.ts`) pass (12/12). Integration test `auth-rls.test.ts` ran live but failed 3/4 tests due to RLS recursion; 4th test assertion is too weak. |
+| 7. Tracker & Docs Synchronization          | 🟢 PASS | `progress/progress.json` and `progress/modules/5.1-auth-and-account.md` accurately capture root cause, migration details, and decisions log.                                                                   |
 
 ---
 
@@ -39,6 +39,7 @@ However, live execution of the cross-tenant RLS integration suite (`tests/integr
    - **Fix**: Apply Migration `0003_fix_workspace_members_rls_recursion.sql` below. It introduces two `SECURITY DEFINER` helper functions (`is_workspace_member` and `is_workspace_role`) with `search_path = public` that read membership with RLS bypassed internally, breaking the recursion loop.
 
 #### Proposed SQL for `app/supabase/migrations/0003_fix_workspace_members_rls_recursion.sql`:
+
 ```sql
 -- Module 5.1 Auth & Account: Fix RLS Policy Infinite Recursion on workspace_members
 
@@ -141,9 +142,11 @@ create policy "workspace_members_delete_owner_only"
    - **Fix**: Apply Migration `0003` to the live Supabase project via MCP, run `get_advisors` security check, and run `node --env-file=.env.local --test tests/integration/auth-rls.test.ts` to confirm 4/4 subtests pass.
 
 ### 🟡 Warnings & Technical Debt (Recommended Fixes)
+
 1. **Manual E2E Auth Click-Through**: Perform manual browser verification of sign-up → sign-in → Google OAuth flow once RLS recursion is resolved.
 
 ### 🟢 Compliments & Solid Practices
+
 - Proactive use of `SECURITY DEFINER` for `create_workspace()` to prevent race conditions during free-plan workspace creation.
 - Generic IP rate-limiter design in `src/lib/security/rate-limit.ts` ready for reuse in Module 5.11.
 
@@ -152,6 +155,7 @@ create policy "workspace_members_delete_owner_only"
 ## 4. Action Plan for Claude Developer
 
 To resolve Run #001 findings and request Run #002:
+
 1. Create `app/supabase/migrations/0003_fix_workspace_members_rls_recursion.sql` with the SQL snippet above.
 2. Apply Migration `0003` to the live Supabase project and check `get_advisors`.
 3. Update `tests/integration/auth-rls.test.ts` assertion logic for Subtest 4.

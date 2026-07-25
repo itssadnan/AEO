@@ -65,15 +65,15 @@ The rule of thumb: **cache anything whose backing data changes less often than i
 
 Concrete rules, by module:
 
-| What | Where | Rule |
-|---|---|---|
-| Gemini/AI-provider grounded checks — paid plans | 5.3, 6.0 | Never re-run the same (brand, prompt) pair faster than the plan's check interval — a `last_checked_at` guard, not a full cache layer |
-| Gemini/AI-provider grounded checks — Free plan | 5.3, 5.9 | No time-based guard — Free plan has no recurring cadence. Gated instead by the lifetime `workspaces.experiments_used` counter (cap: 3, never resets); a 4th on-demand attempt is blocked outright |
-| Public free-check results | 5.11 | Cache identical (brand, prompt) results for 24h, keyed by a hash of normalized input — this is the highest-priority cache in the system, since it's the one endpoint an anonymous visitor can hit repeatedly |
-| Dashboard aggregates (score, share-of-voice, explanation) | 5.5, 5.6 | Computed once when a new check result lands, cached, invalidated by tag when new data arrives — never recomputed on every page view |
-| Crawl-readiness audit | 5.7 | Cache per-domain result, 24h TTL |
-| NVIDIA NIM extraction | 5.4 | Not cached — each raw answer is unique per check; kept cheap via free-tier RPM instead |
-| Billing/plan state | 5.9 | Never cached — must always read as current |
+| What                                                      | Where    | Rule                                                                                                                                                                                                         |
+| --------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Gemini/AI-provider grounded checks — paid plans           | 5.3, 6.0 | Never re-run the same (brand, prompt) pair faster than the plan's check interval — a `last_checked_at` guard, not a full cache layer                                                                         |
+| Gemini/AI-provider grounded checks — Free plan            | 5.3, 5.9 | No time-based guard — Free plan has no recurring cadence. Gated instead by the lifetime `workspaces.experiments_used` counter (cap: 3, never resets); a 4th on-demand attempt is blocked outright            |
+| Public free-check results                                 | 5.11     | Cache identical (brand, prompt) results for 24h, keyed by a hash of normalized input — this is the highest-priority cache in the system, since it's the one endpoint an anonymous visitor can hit repeatedly |
+| Dashboard aggregates (score, share-of-voice, explanation) | 5.5, 5.6 | Computed once when a new check result lands, cached, invalidated by tag when new data arrives — never recomputed on every page view                                                                          |
+| Crawl-readiness audit                                     | 5.7      | Cache per-domain result, 24h TTL                                                                                                                                                                             |
+| NVIDIA NIM extraction                                     | 5.4      | Not cached — each raw answer is unique per check; kept cheap via free-tier RPM instead                                                                                                                       |
+| Billing/plan state                                        | 5.9      | Never cached — must always read as current                                                                                                                                                                   |
 
 Every module's Definition-of-Done includes an explicit caching line item (`progress/progress.json` → `definitionOfDone` → `caching`) — "not cached" is an acceptable answer, but it must be a stated decision, not an omission.
 
@@ -82,6 +82,7 @@ Every module's Definition-of-Done includes an explicit caching line item (`progr
 Every place in the product that calls an AI model is registered as a named **task**, and which `(provider, model)` handles that task is resolved at runtime from the `ai_task_configs` table (see the entity-relationship diagram) — never hardcoded in a module, never in a code constant. No module ever calls `NvidiaProvider.call(...)` or references a model string directly; it calls a single resolver: `resolveTaskModel(taskKey, workspaceId)`.
 
 **Two-row resolution, override pattern:**
+
 - A **global default** row per task (`workspace_id IS NULL`) — what every customer gets unless overridden.
 - An optional **per-workspace override** row per task (`workspace_id = <that workspace>`) — set only for custom-plan customers who need a specific model.
 - `resolveTaskModel` checks for a workspace override first, falls back to the global default, and only uses a row where `enabled = true`.
@@ -103,12 +104,13 @@ During the free-tier period, Gemini and NVIDIA NIM are each backed by up to thre
 **This is a deliberate, informed business decision, not a default recommendation.** Pooling multiple free-tier accounts to multiply quota is a pattern both providers' abuse-monitoring watches for, and because all three keys are called from the same backend for the same product, detection is likely to affect all three together, not one at a time — see Module 5.3's decisions log (2026-07-23) for the full reasoning that was weighed before this was decided. It was decided to proceed anyway on the basis that: the secondary/tertiary accounts belong to real team members, not fabricated identities; those team members were explicitly told their own account carries the suspension risk, not just the company; and this is scoped to disappear the moment the product moves to a paid tier — never a permanent architecture.
 
 Two things are required, not optional, given that decision:
-1. Whoever owns the secondary/tertiary account has been told, explicitly, that this carries real risk to *their* account.
+
+1. Whoever owns the secondary/tertiary account has been told, explicitly, that this carries real risk to _their_ account.
 2. The system fails **loudly**, not silently, when a key dies — see the design below.
 
 **Design:** each provider (`GeminiProvider`, `NvidiaNimProvider`) wraps a small key pool instead of a single key. Env vars: `GEMINI_API_KEY_PRIMARY` / `_SECONDARY` / `_TERTIARY`, same pattern for `NVIDIA_NIM_API_KEY_*`. On a 429 (rate limited), the pool tries the next key for that request — a soft, per-request failover. On a 401/403 (unauthorized/forbidden — the signal an account may have been suspended), the key is marked dead in memory immediately, logged to the Admin Console's error log with an alert, and skipped on every subsequent call until an admin manually clears it — a dead key is never silently retried. If every key in a provider's pool is unavailable, the request falls back to Module 5.3's existing retry/requeue path rather than failing the check outright.
 
-This pool is a separate mechanism from `ai_task_configs` above — that decides *which model* handles a task; this decides *which credential* is used to call whichever provider was already selected. They don't overlap.
+This pool is a separate mechanism from `ai_task_configs` above — that decides _which model_ handles a task; this decides _which credential_ is used to call whichever provider was already selected. They don't overlap.
 
 **Two failover modes, tied to the existing paid-tier upgrade trigger (spec Section 6.4/9).** Before the primary key's account has billing enabled: `failoverMode: "shared"` — secondary/tertiary absorb load on ordinary 429s, as designed above. The moment primary is upgraded (billing enabled for Gemini; the free 200 RPM increase for NVIDIA NIM, which doesn't even require payment), flip to `failoverMode: "emergency-only"` — secondary/tertiary are no longer called for a plain 429, only for a hard failure on primary (401/403/5xx/timeout). A paid or upgraded primary shouldn't be hitting ordinary rate limits at early-customer volume, so there's no reason to keep routing normal load through a teammate's account once that's true. This alone drops secondary/tertiary usage close to zero without removing the resilience benefit.
 

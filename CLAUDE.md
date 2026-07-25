@@ -4,13 +4,13 @@ If you are an LLM (any model, any tool — Claude Code, Cursor, ChatGPT with rep
 
 ## What this project is
 
-A subscription SaaS that tracks whether AI answer engines (starting with Google's Gemini-grounded search) mention and recommend a customer's brand versus their named competitors, explains *why* a competitor is winning, and reports what to fix. Full product rationale, market research, and business plan: `docs/spec/AEO_Visibility_Platform_Spec_v1.1.docx`.
+A subscription SaaS that tracks whether AI answer engines (starting with Google's Gemini-grounded search) mention and recommend a customer's brand versus their named competitors, explains _why_ a competitor is winning, and reports what to fix. Full product rationale, market research, and business plan: `docs/spec/AEO_Visibility_Platform_Spec_v1.1.docx`.
 
 ## Read in this order
 
-1. **`docs/spec/AEO_Visibility_Platform_Spec_v1.1.docx`** — the full product spec: market research, all 12 modules, AI strategy, security, scalability, roadmap, go-to-market. This is *why* the project exists and *what* it must do. Read this once, fully, before touching code, if you haven't already.
-2. **`docs/CONVENTIONS.md`** — the standing engineering rules: folder structure, code quality, caching strategy, security baseline. This is *how* everything gets built. Non-negotiable, applies to every module.
-3. **`progress/progress.json`** — the current state of the build: which modules are done, in progress, or blocked, and what depends on what. This is *where things stand right now*. Read this every session, not just once.
+1. **`docs/spec/AEO_Visibility_Platform_Spec_v1.1.docx`** — the full product spec: market research, all 12 modules, AI strategy, security, scalability, roadmap, go-to-market. This is _why_ the project exists and _what_ it must do. Read this once, fully, before touching code, if you haven't already.
+2. **`docs/CONVENTIONS.md`** — the standing engineering rules: folder structure, code quality, caching strategy, security baseline. This is _how_ everything gets built. Non-negotiable, applies to every module.
+3. **`progress/progress.json`** — the current state of the build: which modules are done, in progress, or blocked, and what depends on what. This is _where things stand right now_. Read this every session, not just once.
 4. **`progress/modules/<id>-*.md`** — the detail file for whichever module you're about to work on: acceptance criteria, caching/security notes specific to that module, and the decisions log explaining choices already made.
 5. **`docs/architecture/`** — system architecture and entity-relationship diagrams (added as the next step after this tracker; if this folder is empty, that step hasn't happened yet — don't start writing application code until it has).
 

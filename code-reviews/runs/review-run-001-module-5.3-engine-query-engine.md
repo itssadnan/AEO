@@ -6,7 +6,7 @@
 **Review Run Number:** 001  
 **Date:** 2026-07-24  
 **QA Lead:** Antigravity (AI QA Lead)  
-**Verdict:** 🟡 NEEDS_REVISION (Code & Tests Approved; Edge Worker Deployment Pending)  
+**Verdict:** 🟡 NEEDS_REVISION (Code & Tests Approved; Edge Worker Deployment Pending)
 
 ---
 
@@ -22,15 +22,15 @@ The module receives 🟡 **`NEEDS_REVISION`** solely because the Supabase Edge F
 
 ## 2. Pillar Evaluation Matrix
 
-| Pillar | Status | Findings / Comments |
-|---|---|---|
-| 1. Architecture & Module Encapsulation | 🟢 PASS | Vendor-level provider interface (`src/lib/ai-providers/`) separated from task-level model resolver (`ai_task_configs` table + `resolver.ts`). Worker logic isolated in `engine-worker`. |
-| 2. TypeScript & Zod Validation | 🟢 PASS | `tsconfig.json` `strict: true` passes (`tsc --noEmit`). Zod schemas validate grounded AI outputs (`groundedResponseSchema`) and task configs. |
-| 3. Security, Multi-Tenancy & RLS | 🟢 PASS | Migrations `0007` & `0008` applied. RLS enabled on `check_runs` using `private.is_workspace_member`. Worker tables (`engine_query_queue`, `key_health_telemetry`) restricted to service-role/worker access. Free-plan 3-check cap enforced via `private.enqueue_free_check()` SECURITY DEFINER function with row locking. |
-| 4. Caching & Quota Strategy | 🟢 PASS | Timestamp guard `last_checked_at` prevents redundant query enqueueing. Free-plan workspaces limited to 3 lifetime on-demand checks. |
-| 5. Operational Resilience & Error Recovery | 🟢 PASS | Multi-key pool (`withKeyFailover`) rotates on 429 in `shared` mode or retries in `emergency-only` mode. 401/403 errors mark keys dead and record key health telemetry. |
-| 6. Automated Testing | 🟢 PASS | 30/30 unit tests passing (`sanity.test.ts`, `auth-email.test.ts`, `auth-permissions.test.ts`, `brand-config-schemas.test.ts`, `engine-query-provider.test.ts`). |
-| 7. Tracker & Docs Synchronization | 🟢 PASS | `progress/progress.json` and `progress/modules/5.3-engine-query-engine.md` accurately track progress at 80%. |
+| Pillar                                     | Status  | Findings / Comments                                                                                                                                                                                                                                                                                                       |
+| ------------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Architecture & Module Encapsulation     | 🟢 PASS | Vendor-level provider interface (`src/lib/ai-providers/`) separated from task-level model resolver (`ai_task_configs` table + `resolver.ts`). Worker logic isolated in `engine-worker`.                                                                                                                                   |
+| 2. TypeScript & Zod Validation             | 🟢 PASS | `tsconfig.json` `strict: true` passes (`tsc --noEmit`). Zod schemas validate grounded AI outputs (`groundedResponseSchema`) and task configs.                                                                                                                                                                             |
+| 3. Security, Multi-Tenancy & RLS           | 🟢 PASS | Migrations `0007` & `0008` applied. RLS enabled on `check_runs` using `private.is_workspace_member`. Worker tables (`engine_query_queue`, `key_health_telemetry`) restricted to service-role/worker access. Free-plan 3-check cap enforced via `private.enqueue_free_check()` SECURITY DEFINER function with row locking. |
+| 4. Caching & Quota Strategy                | 🟢 PASS | Timestamp guard `last_checked_at` prevents redundant query enqueueing. Free-plan workspaces limited to 3 lifetime on-demand checks.                                                                                                                                                                                       |
+| 5. Operational Resilience & Error Recovery | 🟢 PASS | Multi-key pool (`withKeyFailover`) rotates on 429 in `shared` mode or retries in `emergency-only` mode. 401/403 errors mark keys dead and record key health telemetry.                                                                                                                                                    |
+| 6. Automated Testing                       | 🟢 PASS | 30/30 unit tests passing (`sanity.test.ts`, `auth-email.test.ts`, `auth-permissions.test.ts`, `brand-config-schemas.test.ts`, `engine-query-provider.test.ts`).                                                                                                                                                           |
+| 7. Tracker & Docs Synchronization          | 🟢 PASS | `progress/progress.json` and `progress/modules/5.3-engine-query-engine.md` accurately track progress at 80%.                                                                                                                                                                                                              |
 
 ---
 
@@ -47,9 +47,11 @@ The module receives 🟡 **`NEEDS_REVISION`** solely because the Supabase Edge F
    - **Action**: Trigger a live grounded check run through the queue worker and verify raw answer and citation storage in `check_runs` and `check_run_citations`.
 
 ### 🟡 Warnings & Technical Debt (Recommended Fixes)
+
 1. **Admin Console Failover UI**: Ensure Module 5.10 (Admin Console) surfaces the active provider `failoverMode` (`shared` vs `emergency-only`) so administrators can toggle failover behavior once primary API billing is activated.
 
 ### 🟢 Compliments & Solid Practices
+
 - Comprehensive multi-key failover design supporting primary/secondary/tertiary key rotation and instant dead-key isolation (`onKeyDead`).
 - Atomic Free-plan limit enforcement (`private.enqueue_free_check`) using `FOR UPDATE` row locking prevents concurrent check-run race conditions.
 - Strict isolation of AI keys to server-side Edge Worker execution.
@@ -59,6 +61,7 @@ The module receives 🟡 **`NEEDS_REVISION`** solely because the Supabase Edge F
 ## 4. Action Plan for Developer / Deployment
 
 To move Module 5.3 from `in_progress` (80%) to `done` (100%):
+
 1. Deploy `app/supabase/functions/engine-worker/index.ts` via Supabase CLI / MCP with `ENGINE_WORKER_SECRET`.
 2. Configure `pg_cron` schedule with authenticated `pg_net` POST request.
 3. Perform live smoke check and verify `check_runs` populated with raw grounded answer + citations.

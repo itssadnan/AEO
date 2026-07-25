@@ -2,7 +2,7 @@
 
 **Role:** QA Lead  
 **Project:** AEO Visibility Platform  
-**Target:** Production-Grade Quality, Zero-Trust Security, Multi-Tenant Isolation & Maximum Operational Resilience  
+**Target:** Production-Grade Quality, Zero-Trust Security, Multi-Tenant Isolation & Maximum Operational Resilience
 
 ---
 
@@ -122,11 +122,11 @@ Every module review checks the codebase against these 7 mandatory pillars.
 
 When reviewing a module, the QA Lead assigns one of three verdicts:
 
-| Verdict | Meaning | Required Action |
-|---|---|---|
-| 🟢 **`PASSED`** | Code meets all 7 Pillars with production-grade quality. Zero blocking issues. | Module ready to move to `done` status. |
-| 🟡 **`NEEDS_REVISION`** | Minor architectural, testing, type, or documentation gaps identified. | Developer resolves highlighted issues and submits for Nth+1 review pass. |
-| 🔴 **`REJECTED`** | Critical security vulnerability (e.g. missing RLS, leaked key), legal violation (e.g. scraping), or broken core contract. | Implementation paused until fundamental refactoring is completed. |
+| Verdict                 | Meaning                                                                                                                   | Required Action                                                          |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| 🟢 **`PASSED`**         | Code meets all 7 Pillars with production-grade quality. Zero blocking issues.                                             | Module ready to move to `done` status.                                   |
+| 🟡 **`NEEDS_REVISION`** | Minor architectural, testing, type, or documentation gaps identified.                                                     | Developer resolves highlighted issues and submits for Nth+1 review pass. |
+| 🔴 **`REJECTED`**       | Critical security vulnerability (e.g. missing RLS, leaked key), legal violation (e.g. scraping), or broken core contract. | Implementation paused until fundamental refactoring is completed.        |
 
 ---
 
@@ -141,42 +141,47 @@ When performing a code review run, the QA Lead generates a report in `code-revie
 **Review Run Number:** <NNN>  
 **Date:** <YYYY-MM-DD>  
 **QA Lead:** Antigravity (AI QA Lead)  
-**Verdict:** 🟢 PASSED | 🟡 NEEDS_REVISION | 🔴 REJECTED  
+**Verdict:** 🟢 PASSED | 🟡 NEEDS_REVISION | 🔴 REJECTED
 
 ---
 
 ## 1. Executive Summary
+
 Brief summary of the submission scope, key additions, and overall code quality observed during this review pass.
 
 ---
 
 ## 2. Pillar Evaluation Matrix
 
-| Pillar | Status | Findings / Comments |
-|---|---|---|
-| 1. Architecture & Module Encapsulation | PASS / FAIL / WARN | ... |
-| 2. TypeScript & Zod Validation | PASS / FAIL / WARN | ... |
-| 3. Security, Multi-Tenancy & RLS | PASS / FAIL / WARN | ... |
-| 4. Caching & Quota Strategy | PASS / FAIL / WARN | ... |
-| 5. Operational Resilience & Error Recovery | PASS / FAIL / WARN | ... |
-| 6. Automated Testing | PASS / FAIL / WARN | ... |
-| 7. Tracker & Docs Synchronization | PASS / FAIL / WARN | ... |
+| Pillar                                     | Status             | Findings / Comments |
+| ------------------------------------------ | ------------------ | ------------------- |
+| 1. Architecture & Module Encapsulation     | PASS / FAIL / WARN | ...                 |
+| 2. TypeScript & Zod Validation             | PASS / FAIL / WARN | ...                 |
+| 3. Security, Multi-Tenancy & RLS           | PASS / FAIL / WARN | ...                 |
+| 4. Caching & Quota Strategy                | PASS / FAIL / WARN | ...                 |
+| 5. Operational Resilience & Error Recovery | PASS / FAIL / WARN | ...                 |
+| 6. Automated Testing                       | PASS / FAIL / WARN | ...                 |
+| 7. Tracker & Docs Synchronization          | PASS / FAIL / WARN | ...                 |
 
 ---
 
 ## 3. Detailed Findings & Action Items
 
 ### 🔴 Critical Blockers (Must Fix to Pass)
+
 1. **[File Path / Line Number]**: Issue description & exact fix requirement.
 
 ### 🟡 Warnings & Technical Debt (Recommended Fixes)
+
 1. **[File Path / Line Number]**: Optimization or cleanup recommendation.
 
 ### 🟢 Compliments & Solid Practices
+
 1. Well-implemented patterns or clean test suites observed.
 
 ---
 
 ## 4. Next Steps & Re-Review Instructions
+
 Instructions for the developer (Claude) on what to address before requesting Run #<NNN+1>.
 ```

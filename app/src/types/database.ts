@@ -275,6 +275,104 @@ export type Database = {
           },
         ];
       };
+      check_extractions: {
+        Row: {
+          id: string;
+          check_run_id: string;
+          workspace_id: string;
+          brand_id: string;
+          prompt_id: string;
+          provider: string | null;
+          model: string | null;
+          brand_mentioned: boolean | null;
+          position_among_competitors: number | null;
+          reasoning: string | null;
+          sentiment: string | null;
+          competitor_names_found: string[];
+          cited_domains: string[];
+          cited_domain_types: Json;
+          status: string;
+          attempts: number;
+          claimed_at: string | null;
+          last_error_code: string | null;
+          extracted_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          check_run_id: string;
+          workspace_id: string;
+          brand_id: string;
+          prompt_id: string;
+          provider?: string | null;
+          model?: string | null;
+          brand_mentioned?: boolean | null;
+          position_among_competitors?: number | null;
+          reasoning?: string | null;
+          sentiment?: string | null;
+          competitor_names_found?: string[];
+          cited_domains?: string[];
+          cited_domain_types?: Json;
+          status?: string;
+          attempts?: number;
+          claimed_at?: string | null;
+          last_error_code?: string | null;
+          extracted_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          check_run_id?: string;
+          workspace_id?: string;
+          brand_id?: string;
+          prompt_id?: string;
+          provider?: string | null;
+          model?: string | null;
+          brand_mentioned?: boolean | null;
+          position_among_competitors?: number | null;
+          reasoning?: string | null;
+          sentiment?: string | null;
+          competitor_names_found?: string[];
+          cited_domains?: string[];
+          cited_domain_types?: Json;
+          status?: string;
+          attempts?: number;
+          claimed_at?: string | null;
+          last_error_code?: string | null;
+          extracted_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "check_extractions_check_run_id_fkey";
+            columns: ["check_run_id"];
+            isOneToOne: true;
+            referencedRelation: "check_runs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "check_extractions_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "check_extractions_brand_id_fkey";
+            columns: ["brand_id"];
+            isOneToOne: false;
+            referencedRelation: "brands";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "check_extractions_prompt_id_fkey";
+            columns: ["prompt_id"];
+            isOneToOne: false;
+            referencedRelation: "prompts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       competitors: {
         Row: {
           brand_id: string;

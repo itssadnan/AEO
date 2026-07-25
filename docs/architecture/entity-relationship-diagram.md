@@ -114,22 +114,22 @@ erDiagram
 
 Columns omitted from the diagram above for readability (every table also has `created_at timestamptz default now()` unless noted):
 
-| Table | Additional columns |
-|---|---|
-| `workspaces` | `created_at` |
-| `workspace_members` | `created_at` |
-| `brands` | `industry text`, `created_at` |
-| `competitors` | `website text` |
-| `prompts` | `active bool default true`, `created_at` |
-| `check_runs` | `model text`, `raw_answer text`, `reasoning text`, `competitor_names_found jsonb`, `cited_domains jsonb`, `cited_domain_types jsonb`, `status text` (success/error/rate_limited), `checked_at timestamptz` |
-| `visibility_snapshots` | `mention_count int`, `avg_rank numeric`, `explanation_breakdown jsonb`, `opportunity_gaps jsonb`, `period_start date`, `period_end date`, `generated_at timestamptz` |
-| `crawl_audits` | `robots_txt_result jsonb`, `schema_present bool`, `checked_at timestamptz` |
-| `alert_logs` | `payload jsonb` |
-| `subscriptions` | `plan_tier text`, `current_period_end timestamptz` |
-| `usage_counters` | `prompts_used int` |
-| `free_check_cache` | `brand_name_input text`, `prompt_input text`, `created_at` (TTL enforced in application logic — see caching note below) |
-| `leads` | `company_name text`, `contact_email text`, `free_check_result jsonb`, `email_sent_at timestamptz` |
-| `ai_task_configs` | `updated_by uuid FK → auth.users`, `updated_at timestamptz`, `created_at` |
+| Table                  | Additional columns                                                                                                                                                                                         |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `workspaces`           | `created_at`                                                                                                                                                                                               |
+| `workspace_members`    | `created_at`                                                                                                                                                                                               |
+| `brands`               | `industry text`, `created_at`                                                                                                                                                                              |
+| `competitors`          | `website text`                                                                                                                                                                                             |
+| `prompts`              | `active bool default true`, `created_at`                                                                                                                                                                   |
+| `check_runs`           | `model text`, `raw_answer text`, `reasoning text`, `competitor_names_found jsonb`, `cited_domains jsonb`, `cited_domain_types jsonb`, `status text` (success/error/rate_limited), `checked_at timestamptz` |
+| `visibility_snapshots` | `mention_count int`, `avg_rank numeric`, `explanation_breakdown jsonb`, `opportunity_gaps jsonb`, `period_start date`, `period_end date`, `generated_at timestamptz`                                       |
+| `crawl_audits`         | `robots_txt_result jsonb`, `schema_present bool`, `checked_at timestamptz`                                                                                                                                 |
+| `alert_logs`           | `payload jsonb`                                                                                                                                                                                            |
+| `subscriptions`        | `plan_tier text`, `current_period_end timestamptz`                                                                                                                                                         |
+| `usage_counters`       | `prompts_used int`                                                                                                                                                                                         |
+| `free_check_cache`     | `brand_name_input text`, `prompt_input text`, `created_at` (TTL enforced in application logic — see caching note below)                                                                                    |
+| `leads`                | `company_name text`, `contact_email text`, `free_check_result jsonb`, `email_sent_at timestamptz`                                                                                                          |
+| `ai_task_configs`      | `updated_by uuid FK → auth.users`, `updated_at timestamptz`, `created_at`                                                                                                                                  |
 
 ## Design decisions (read before modifying this schema)
 
