@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import { useState, useEffect } from "react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 interface HeaderProps {
@@ -14,16 +14,20 @@ interface HeaderProps {
  * Shows workspace name, plan tier, theme toggle, and user avatar.
  */
 export function Header({ userEmail, workspaceName, planTier }: HeaderProps) {
-  const [theme, setTheme] = React.useState<"system" | "dark" | "light">("system");
-  const [mounted, setMounted] = React.useState(false);
+  // Read theme from localStorage during render to avoid layout shift
+  const getInitialTheme = () => {
+    if (typeof window === "undefined") return "system";
+    return (localStorage.getItem("theme") as "system" | "dark" | "light") || "system";
+  };
 
-  React.useEffect(() => {
+  const [theme, setTheme] = useState<"system" | "dark" | "light">(getInitialTheme);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
     setMounted(true);
-    const saved = localStorage.getItem("theme") as "system" | "dark" | "light" | null;
-    if (saved) setTheme(saved);
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!mounted) return;
     const root = document.documentElement;
     if (theme === "system") {

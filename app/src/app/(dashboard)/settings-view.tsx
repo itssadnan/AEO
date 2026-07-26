@@ -194,12 +194,13 @@ export function SettingsView({
         <>
           {isLocked ? (
             <LockedPanel
-              children={<div />}
               isLocked={true}
               lockMessage="Competitor management is a Pro feature. Upgrade to add and track competitors."
               ctaLabel="Upgrade to Pro"
               ctaHref="/settings/billing"
-            />
+            >
+              <div />
+            </LockedPanel>
           ) : (
             <Card className="p-6 space-y-6">
               <div className="flex items-center justify-between">
@@ -278,12 +279,13 @@ export function SettingsView({
         <>
           {isLocked ? (
             <LockedPanel
-              children={<div />}
               isLocked={true}
               lockMessage="Custom prompt tracking is a Pro feature. Upgrade to add and manage your own prompts."
               ctaLabel="Upgrade to Pro"
               ctaHref="/settings/billing"
-            />
+            >
+              <div />
+            </LockedPanel>
           ) : (
             <Card className="p-6 space-y-6">
               <div className="flex items-center justify-between">

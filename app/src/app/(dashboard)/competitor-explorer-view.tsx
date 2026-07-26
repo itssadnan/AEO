@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
+import * as React from "react";
 import { Card } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { EngineBadge } from "@/components/ui/engine-badge";
@@ -47,7 +48,7 @@ export function CompetitorExplorerView({
   const isLocked = workspace.plan_tier === "free" && competitors.length > 0;
 
   // Fetch competitor explorer data
-  const fetchCompetitorData = async () => {
+  const fetchCompetitorData = useCallback(async () => {
     if (isLocked) return;
     setIsLoading(true);
     setError(null);
@@ -61,12 +62,12 @@ export function CompetitorExplorerView({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [engine, brand.id, isLocked]);
 
   // Load data on mount and engine change
-  useEffect(() => {
+  React.useEffect(() => {
     fetchCompetitorData();
-  }, [engine, brand.id]);
+  }, [fetchCompetitorData]);
 
   if (isLocked) {
     return (
@@ -87,12 +88,13 @@ export function CompetitorExplorerView({
 
         {/* Locked panel */}
         <LockedPanel
-          children={<div />}
           isLocked={true}
           lockMessage="Competitor tracking is a Pro feature. Upgrade to unlock detailed competitor analysis."
           ctaLabel="Upgrade to Pro"
           ctaHref="/settings/billing"
-        />
+        >
+          <div />
+        </LockedPanel>
       </div>
     );
   }

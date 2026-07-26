@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { EngineBadge } from "@/components/ui/engine-badge";
 import { PlanBadge } from "@/components/ui/plan-badge";
@@ -54,7 +54,7 @@ export function ReportsView({
     "90d": "Last 90 days",
   };
 
-  const fetchReportData = async () => {
+  const fetchReportData = useCallback(async () => {
     if (isLocked) return;
     setIsLoading(true);
     setError(null);
@@ -70,7 +70,7 @@ export function ReportsView({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [engine, period, brand.id, isLocked]);
 
   const generateReport = async (format: "pdf" | "csv") => {
     setIsGenerating(true);
@@ -95,6 +95,11 @@ export function ReportsView({
     }
   };
 
+  // Auto-fetch on mount and when engine/period changes
+  useEffect(() => {
+    fetchReportData();
+  }, [fetchReportData]);
+
   if (isLocked) {
     return (
       <div className="mx-auto max-w-4xl space-y-8">
@@ -112,20 +117,16 @@ export function ReportsView({
         </div>
 
         <LockedPanel
-          children={<div />}
           isLocked={true}
           lockMessage="Scheduled reports and PDF/CSV export are Pro features. Upgrade to unlock automated reporting."
           ctaLabel="Upgrade to Pro"
           ctaHref="/settings/billing"
-        />
+        >
+          <div />
+        </LockedPanel>
       </div>
     );
   }
-
-  // Auto-fetch on mount and when engine/period changes
-  useEffect(() => {
-    fetchReportData();
-  }, [engine, period, brand.id]);
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">

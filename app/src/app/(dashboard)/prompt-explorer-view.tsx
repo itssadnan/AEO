@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
+import * as React from "react";
 import { Card } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { EngineBadge } from "@/components/ui/engine-badge";
@@ -43,7 +44,7 @@ export function PromptExplorerView({
   const [error, setError] = useState<string | null>(null);
 
   // Fetch prompt explorer data
-  const fetchPromptData = async () => {
+  const fetchPromptData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -56,12 +57,12 @@ export function PromptExplorerView({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [engine, brand.id]);
 
   // Load data on mount and engine change
-  useEffect(() => {
+  React.useEffect(() => {
     fetchPromptData();
-  }, [engine, brand.id]);
+  }, [fetchPromptData]);
 
   const hasData = promptData.length > 0 && !isLoading;
 

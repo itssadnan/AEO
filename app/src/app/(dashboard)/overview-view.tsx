@@ -251,12 +251,13 @@ export function OverviewView({
               </div>
               {isCompetitorLocked ? (
                 <LockedPanel
-                  children={<div />}
                   isLocked={true}
                   lockMessage="Upgrade to Pro for competitor tracking"
                   ctaLabel="Upgrade"
                   ctaHref="/settings/billing"
-                />
+                >
+                  <div />
+                </LockedPanel>
               ) : (
                 competitors.length === 0 && (
                   <a
