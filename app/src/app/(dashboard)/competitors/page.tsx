@@ -5,6 +5,7 @@ import {
   getBrandWithRelations,
   computeOverviewMetrics,
   getEmptyStateConfig,
+  mapPlanTier,
 } from "@/modules/dashboard/queries";
 
 export default async function CompetitorsPage({
@@ -81,19 +82,6 @@ export default async function CompetitorsPage({
   if (!brandWithRelations) {
     redirect("/dashboard");
   }
-
-  const mapPlanTier = (tier: string): "free" | "starter" | "growth" | "agency" => {
-    switch (tier) {
-      case "free":
-        return "free";
-      case "pro":
-        return "starter";
-      case "enterprise":
-        return "agency";
-      default:
-        return "free";
-    }
-  };
 
   return (
     <CompetitorExplorerView

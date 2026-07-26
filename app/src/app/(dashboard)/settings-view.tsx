@@ -416,7 +416,7 @@ export function SettingsView({
             ) : (
               <div className="space-y-4">
                 <p className="text-sm text-[var(--color-text-secondary)]">
-                  You're on the <strong>{workspace.plan_tier}</strong> plan. Manage your
+                  You are on the <strong>{workspace.plan_tier}</strong> plan. Manage your
                   subscription below.
                 </p>
                 <Button

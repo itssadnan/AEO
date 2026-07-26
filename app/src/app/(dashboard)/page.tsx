@@ -4,6 +4,7 @@ import {
   getBrandWithRelations,
   computeOverviewMetrics,
   getEmptyStateConfig,
+  mapPlanTier,
 } from "@/modules/dashboard/queries";
 import { Header } from "./header";
 import { Navigation } from "./navigation";
@@ -109,19 +110,6 @@ export default async function DashboardPage() {
   const membership = memberships?.find((m) => m.workspace_id === brand.workspace_id);
   const userRole: UserRole = (membership?.role as UserRole) ?? "member";
 
-  // Map legacy plan tiers to new tiers
-  const mapPlanTier = (tier: string): "free" | "starter" | "growth" | "agency" => {
-    switch (tier) {
-      case "free":
-        return "free";
-      case "pro":
-        return "starter";
-      case "enterprise":
-        return "agency";
-      default:
-        return "free";
-    }
-  };
   const planTier = mapPlanTier(workspace.plan_tier);
 
   return (

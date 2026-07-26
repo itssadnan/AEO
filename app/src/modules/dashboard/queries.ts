@@ -370,6 +370,12 @@ export async function getReportData(
   };
 }
 
+// Re-exported here so existing `@/modules/dashboard/queries` imports keep
+// working unchanged; the actual implementation lives in ./plan-tier.ts,
+// deliberately isolated from this file's Supabase/Next.js runtime imports so
+// it can be unit tested in a plain Node process. See that file's doc-comment.
+export { mapPlanTier } from "./plan-tier";
+
 export async function getEmptyStateConfig(brandId: string | null): Promise<EmptyStateConfig> {
   const supabase = await getSupabase();
 

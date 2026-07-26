@@ -5,9 +5,8 @@ import {
   getBrandWithRelations,
   computeOverviewMetrics,
   getEmptyStateConfig,
+  mapPlanTier,
 } from "@/modules/dashboard/queries";
-
-type PlanTier = "free" | "starter" | "growth" | "agency";
 
 export default async function OverviewPage({
   searchParams,
@@ -83,19 +82,6 @@ export default async function OverviewPage({
   if (!brandWithRelations) {
     redirect("/dashboard");
   }
-
-  const mapPlanTier = (tier: string): PlanTier => {
-    switch (tier) {
-      case "free":
-        return "free";
-      case "pro":
-        return "starter";
-      case "enterprise":
-        return "agency";
-      default:
-        return "free";
-    }
-  };
 
   return (
     <OverviewView
