@@ -9,9 +9,8 @@ import { BrandForm } from "./brand-form";
  * multi-workspace agency UX (workspace picker, brand list, etc.) belongs to
  * Module 5.6's real dashboard, not this module. This page exists so 5.2's
  * acceptance criteria (manual entry + AI-assisted prompt suggestion +
- * plan-tier-aware prompt handling) have a real, testable surface, the same
- * way Module 5.1's placeholder /dashboard existed to give the auth flow a
- * real landing spot.
+ * plan-tier-aware prompt handling) have a real, testable surface. Redirects
+ * to /overview (Module 5.6's real dashboard) on success/fallback.
  */
 export default async function NewBrandPage() {
   const supabase = await createSupabaseServerClient();
@@ -33,7 +32,7 @@ export default async function NewBrandPage() {
   if (!membership) {
     // Shouldn't happen — create_workspace() runs at signup (Module 5.1) —
     // but fail safe rather than crash if it somehow does.
-    redirect("/dashboard");
+    redirect("/overview");
   }
 
   const { data: workspace } = await supabase
@@ -43,7 +42,7 @@ export default async function NewBrandPage() {
     .single();
 
   if (!workspace) {
-    redirect("/dashboard");
+    redirect("/overview");
   }
 
   // Viewers are read-only (spec 5.1: "agencies invite client-side viewers

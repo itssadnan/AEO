@@ -80,7 +80,7 @@ export default async function OverviewPage({
   ]);
 
   if (!brandWithRelations) {
-    redirect("/dashboard");
+    redirect("/overview");
   }
 
   return (

@@ -283,7 +283,7 @@ export function OverviewView({
                 </div>
               </div>
               <a
-                href={`/dashboard/${brand.id}/reports`}
+                href={`/reports?brandId=${brand.id}`}
                 className="text-sm font-medium text-[var(--color-accent)] hover:underline"
               >
                 View reports
@@ -301,7 +301,7 @@ export function OverviewView({
               Recent Prompt Activity
             </h2>
             <a
-              href={`/dashboard/${brand.id}/prompts`}
+              href={`/prompts?brandId=${brand.id}`}
               className="text-sm font-medium text-[var(--color-accent)] hover:underline"
             >
               View all →

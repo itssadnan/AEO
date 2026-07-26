@@ -89,7 +89,7 @@ export default async function ReportsPage({
   ]);
 
   if (!brandWithRelations) {
-    redirect("/dashboard");
+    redirect("/overview");
   }
 
   return (

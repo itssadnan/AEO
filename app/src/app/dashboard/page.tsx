@@ -1,43 +1,20 @@
 import { redirect } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/db";
 
-// Placeholder — the real dashboard UI is Module 5.6. This exists so Module
-// 5.1's auth flow has a real, auth-gated destination to land on and verify
-// against, rather than 404ing after a successful sign-in.
-export default async function DashboardPage() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/sign-in");
-  }
-
-  const { data: memberships } = await supabase
-    .from("workspace_members")
-    .select("workspace_id, role")
-    .eq("user_id", user.id);
-
-  const workspaceIds = (memberships ?? []).map((m) => m.workspace_id);
-  const { data: workspaces } =
-    workspaceIds.length > 0
-      ? await supabase.from("workspaces").select("id, name").in("id", workspaceIds)
-      : { data: [] as { id: string; name: string }[] };
-
-  const workspaceNameById = new Map((workspaces ?? []).map((w) => [w.id, w.name]));
-
-  return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 py-24">
-      <h1 className="text-2xl font-semibold">Welcome, {user.email}</h1>
-      <p className="text-zinc-600">Signed in. Your workspaces:</p>
-      <ul className="list-disc pl-6">
-        {(memberships ?? []).map((m) => (
-          <li key={m.workspace_id}>
-            {workspaceNameById.get(m.workspace_id) ?? m.workspace_id} ({m.role})
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
+/**
+ * Legacy placeholder from Module 5.1, kept only as a redirect for any
+ * existing bookmarks/links to /dashboard. The real dashboard UI (Module 5.6)
+ * lives at /overview (and the sibling /prompts, /competitors, /reports,
+ * /settings routes) via the (dashboard) route group.
+ *
+ * Found during independent verification: every real entry point in the app
+ * (sign-in, sign-up, brand creation, the auth callback's default `next`)
+ * used to redirect here, to this dead "Welcome, {email}" placeholder instead
+ * of the actual built dashboard -- meaning the Module 5.6 UI was effectively
+ * unreachable through normal product flow despite being fully built and
+ * verified. Fixed by pointing all of those redirects at /overview directly
+ * and turning this route into a plain redirect for anyone who still lands
+ * here (e.g. an old bookmark).
+ */
+export default function DashboardPlaceholderRedirect() {
+  redirect("/overview");
 }

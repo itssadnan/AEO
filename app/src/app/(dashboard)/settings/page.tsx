@@ -82,7 +82,7 @@ export default async function SettingsPage({
   ]);
 
   if (!brandWithRelations) {
-    redirect("/dashboard");
+    redirect("/overview");
   }
 
   return (

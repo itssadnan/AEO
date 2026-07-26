@@ -80,7 +80,7 @@ export default async function CompetitorsPage({
   ]);
 
   if (!brandWithRelations) {
-    redirect("/dashboard");
+    redirect("/overview");
   }
 
   return (

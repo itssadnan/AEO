@@ -72,7 +72,5 @@ export async function createBrandAction(input: {
     return { error: result.error };
   }
 
-  // Real per-brand dashboard is Module 5.6 — land back on the placeholder
-  // dashboard for now, same pattern Module 5.1 used for post-signup.
-  redirect("/dashboard");
+  redirect("/overview");
 }

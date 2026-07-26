@@ -143,7 +143,7 @@ export async function signUpAction(formData: FormData): Promise<void> {
     }
   }
 
-  redirect("/dashboard");
+  redirect("/overview");
 }
 
 export async function signInAction(formData: FormData): Promise<void> {
@@ -170,7 +170,7 @@ export async function signInAction(formData: FormData): Promise<void> {
     redirect(`/sign-in?error=${encodeURIComponent("Invalid email or password")}`);
   }
 
-  redirect("/dashboard");
+  redirect("/overview");
 }
 
 export async function signInWithGoogleAction(): Promise<void> {

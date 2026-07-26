@@ -80,7 +80,7 @@ export default async function PromptsPage({
   ]);
 
   if (!brandWithRelations) {
-    redirect("/dashboard");
+    redirect("/overview");
   }
 
   return (
