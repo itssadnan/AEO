@@ -1,5 +1,4 @@
 import { createSupabaseServerClient } from "@/lib/db/supabase-server";
-import type { Database } from "@/types/database";
 import type {
   BrandWithRelations,
   OverviewMetrics,
@@ -16,10 +15,11 @@ const supabaseFrom = (
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   table: string,
 ) =>
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- visibility_snapshots and
-  // brand_subscriptions (see database-extensions.ts) aren't in the generated Database type yet;
-  // supabase-js's .from() requires a known table-name union, so this is a deliberate escape
-  // hatch until app/src/types/database.ts is regenerated from the live schema.
+  // visibility_snapshots and brand_subscriptions (see database-extensions.ts) aren't in the
+  // generated Database type yet; supabase-js's .from() requires a known table-name union, so
+  // this is a deliberate escape hatch until app/src/types/database.ts is regenerated from the
+  // live schema.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase.from(table as any);
 
 async function getSupabase() {
@@ -94,10 +94,13 @@ export async function computeOverviewMetrics(
     .eq("brand_id", brandId)
     .order("generated_at", { ascending: false })
     .limit(1)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- only `data` is read below
-    // (checked via truthiness); `error` isn't reused, so a precise Postgrest error type isn't
-    // worth reproducing here.
-    .single()) as { data: VisibilitySnapshotRow | null; error: any };
+    .single()) as {
+    data: VisibilitySnapshotRow | null;
+    // Only `data` is read below (checked via truthiness); `error` isn't reused, so a precise
+    // Postgrest error type isn't worth reproducing here.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    error: any;
+  };
 
   // Get competitor count
   const { count: competitorCount } = await supabase
@@ -129,10 +132,10 @@ export async function computeOverviewMetrics(
     const brandName = brand.data?.name ?? "";
     const brandShare = shareOfVoice[brandName] ?? 0;
 
-    // Calculate rank from share_of_voice
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- share_of_voice is stored as
-    // JSONB (the generated Json type); this { competitors: [...] } shape comes from the SQL
-    // scoring function in migration 0016 and isn't represented in the generated Json type.
+    // Calculate rank from share_of_voice. share_of_voice is stored as JSONB (the generated Json
+    // type); this { competitors: [...] } shape comes from the SQL scoring function in migration
+    // 0016 and isn't represented in the generated Json type.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const competitors = (shareOfVoice as any).competitors ?? [];
     const higherCompetitors = competitors.filter(
       (c: { share_pct: number }) => c.share_pct > brandShare,
@@ -206,9 +209,10 @@ export async function getPromptExplorerData(
   const promptMap = new Map(prompts?.map((p) => [p.id, p.text]) ?? []);
 
   return runs.map((run) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- supabase-js doesn't infer
-    // the joined check_extractions relation's shape from the .select() template string above;
-    // the real columns are validated by that query string against the live schema at request time.
+    // supabase-js doesn't infer the joined check_extractions relation's shape from the
+    // .select() template string above; the real columns are validated by that query string
+    // against the live schema at request time.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const extraction = (run as any).check_extractions?.[0];
     const brandMentioned = extraction?.brand_mentioned ?? false;
     const brandPosition = extraction?.position_among_competitors ?? null;
@@ -295,9 +299,10 @@ export async function getCompetitorExplorerData(
   });
 
   runs.forEach((run) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- same reason as
-    // getPromptExplorerData above: the joined check_extractions relation's shape isn't inferred
-    // from the .select() template string, only validated by it against the live schema.
+    // Same reason as getPromptExplorerData above: the joined check_extractions relation's shape
+    // isn't inferred from the .select() template string, only validated by it against the live
+    // schema.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const extraction = (run as any).check_extractions?.[0];
     if (!extraction) return;
 
