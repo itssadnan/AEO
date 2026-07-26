@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-// Deliberately not using next/font/google here: it requires a build-time fetch to
-// Google Fonts, which is one more thing that can fail a production build for no
-// product benefit at this stage. Using the system font stack (via Tailwind's default
-// font-sans) instead. Revisit with next/font/local or a self-hosted font if/when
-// there's an actual brand typeface to ship.
+const geistSans = Geist({
+  subsets: ["latin"],
+  variable: "--font-geist-sans",
+  display: "swap",
+});
+
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-geist-mono",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "AEO Visibility Platform",
   description: "Tracks whether AI answer engines mention and recommend your brand.",
@@ -17,7 +25,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
       <body className="min-h-full flex flex-col font-sans">{children}</body>
     </html>
   );

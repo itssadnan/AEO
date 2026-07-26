@@ -1,0 +1,423 @@
+import { createSupabaseServerClient } from "@/lib/db/supabase-server";
+import type { Database } from "@/types/database";
+import type {
+  BrandWithRelations,
+  OverviewMetrics,
+  PromptExplorerRow,
+  CompetitorExplorerRow,
+  ReportData,
+  PlanTier,
+  EmptyStateConfig,
+} from "./types";
+import type { VisibilitySnapshotRow } from "./database-extensions";
+
+type CheckRun = Database["public"]["Tables"]["check_runs"]["Row"];
+type Brand = Database["public"]["Tables"]["brands"]["Row"];
+type Competitor = Database["public"]["Tables"]["competitors"]["Row"];
+type Prompt = Database["public"]["Tables"]["prompts"]["Row"];
+type Workspace = Database["public"]["Tables"]["workspaces"]["Row"];
+
+// Type assertion helper for tables not yet in generated types
+const supabaseFrom = (
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  table: string,
+) => supabase.from(table as any);
+
+async function getSupabase() {
+  return createSupabaseServerClient();
+}
+
+export async function getBrandWithRelations(brandId: string): Promise<BrandWithRelations | null> {
+  const supabase = await getSupabase();
+
+  const { data: brand, error: brandError } = await supabase
+    .from("brands")
+    .select("*")
+    .eq("id", brandId)
+    .single();
+
+  if (brandError || !brand) return null;
+
+  const [{ data: competitors }, { data: prompts }, { data: workspace }] = await Promise.all([
+    supabase
+      .from("competitors")
+      .select("*")
+      .eq("brand_id", brandId)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("prompts")
+      .select("*")
+      .eq("brand_id", brandId)
+      .eq("is_active", true)
+      .order("created_at", { ascending: true }),
+    supabase.from("workspaces").select("*").eq("id", brand.workspace_id).single(),
+  ]);
+
+  return {
+    ...brand,
+    competitors: competitors ?? [],
+    prompts: prompts ?? [],
+    workspace: workspace!,
+  };
+}
+
+export async function getLatestVisibilitySnapshot(
+  brandId: string,
+  engine: "gemini" | "nvidia_nim" = "gemini",
+): Promise<VisibilitySnapshotRow | null> {
+  const supabase = await getSupabase();
+
+  const { data } = await supabaseFrom(supabase, "visibility_snapshots")
+    .select("*")
+    .eq("brand_id", brandId)
+    .order("generated_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  return data as VisibilitySnapshotRow | null;
+}
+
+export async function computeOverviewMetrics(
+  brandId: string,
+  engine: "gemini" | "nvidia-nim",
+): Promise<OverviewMetrics> {
+  const supabase = await getSupabase();
+  const provider = engine === "gemini" ? "google_gemini" : "nvidia_nim";
+
+  // Get latest snapshot
+  const { data: snapshot } = (await supabaseFrom(supabase, "visibility_snapshots")
+    .select("score, share_of_voice, mention_count, avg_rank, generated_at")
+    .eq("brand_id", brandId)
+    .order("generated_at", { ascending: false })
+    .limit(1)
+    .single()) as { data: VisibilitySnapshotRow | null; error: any };
+
+  // Get competitor count
+  const { count: competitorCount } = await supabase
+    .from("competitors")
+    .select("*", { count: "exact", head: true })
+    .eq("brand_id", brandId);
+
+  // Get prompt count
+  const { count: promptCount } = await supabase
+    .from("prompts")
+    .select("*", { count: "exact", head: true })
+    .eq("brand_id", brandId)
+    .eq("is_active", true);
+
+  // Get last checked time from check_runs
+  const { data: lastRun } = await supabase
+    .from("check_runs")
+    .select("checked_at")
+    .eq("brand_id", brandId)
+    .eq("provider", provider)
+    .eq("status", "completed")
+    .order("checked_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (snapshot) {
+    const shareOfVoice = snapshot.share_of_voice as Record<string, number>;
+    const brand = await supabase.from("brands").select("name").eq("id", brandId).single();
+    const brandName = brand.data?.name ?? "";
+    const brandShare = shareOfVoice[brandName] ?? 0;
+
+    // Calculate rank from share_of_voice
+    const competitors = (shareOfVoice as any).competitors ?? [];
+    const higherCompetitors = competitors.filter(
+      (c: { share_pct: number }) => c.share_pct > brandShare,
+    );
+    const rank = higherCompetitors.length + 1;
+
+    return {
+      visibilityScore: snapshot.score,
+      shareOfVoice: brandShare,
+      rank,
+      totalCompetitors: competitorCount ?? 0,
+      totalPrompts: promptCount ?? 0,
+      lastChecked: lastRun?.checked_at ?? snapshot.generated_at,
+      engine,
+    };
+  }
+
+  // No snapshot yet - return zeros
+  return {
+    visibilityScore: 0,
+    shareOfVoice: 0,
+    rank: competitorCount ? competitorCount + 1 : 1,
+    totalCompetitors: competitorCount ?? 0,
+    totalPrompts: promptCount ?? 0,
+    lastChecked: lastRun?.checked_at ?? null,
+    engine,
+  };
+}
+
+export async function getPromptExplorerData(
+  brandId: string,
+  engine: "gemini" | "nvidia-nim" = "gemini",
+): Promise<PromptExplorerRow[]> {
+  const supabase = await getSupabase();
+  const provider = engine === "gemini" ? "google_gemini" : "nvidia_nim";
+
+  const { data: runs } = await supabase
+    .from("check_runs")
+    .select(
+      `
+      id,
+      prompt_id,
+      checked_at,
+      raw_answer,
+      model,
+      provider,
+      check_extractions!check_extractions_check_run_id_fkey(
+        brand_mentioned,
+        position_among_competitors,
+        competitor_names_found,
+        cited_domains,
+        cited_domain_types
+      )
+    `,
+    )
+    .eq("brand_id", brandId)
+    .eq("provider", provider)
+    .eq("status", "completed")
+    .order("checked_at", { ascending: false })
+    .limit(100);
+
+  if (!runs) return [];
+
+  // Get prompts
+  const { data: prompts } = await supabase
+    .from("prompts")
+    .select("id, text")
+    .eq("brand_id", brandId)
+    .eq("is_active", true);
+
+  const promptMap = new Map(prompts?.map((p) => [p.id, p.text]) ?? []);
+
+  return runs.map((run) => {
+    const extraction = (run as any).check_extractions?.[0];
+    const brandMentioned = extraction?.brand_mentioned ?? false;
+    const brandPosition = extraction?.position_among_competitors ?? null;
+    const competitorNames = extraction?.competitor_names_found ?? [];
+    const citedDomains = extraction?.cited_domains?.length ?? 0;
+    const citedTypes = extraction?.cited_domain_types?.length ?? 0;
+    const citationRatio =
+      citedDomains > 0 ? Math.min(citedDomains / (citedDomains + citedTypes + 1), 1) : 0;
+
+    // Calculate visibility score for this prompt (simplified)
+    const visibilityScore = brandMentioned
+      ? Math.round(100 / Math.log2((brandPosition ?? 1) + 1))
+      : 0;
+
+    return {
+      id: run.id,
+      promptText: promptMap.get(run.prompt_id) ?? "Unknown prompt",
+      brandMentioned,
+      brandPosition,
+      competitorMentions: competitorNames,
+      visibilityScore,
+      citationRatio: Math.round(citationRatio * 100) / 100,
+      checkedAt: run.checked_at,
+      engine,
+      sourceId: run.id,
+    };
+  });
+}
+
+export async function getCompetitorExplorerData(
+  brandId: string,
+  engine: "gemini" | "nvidia-nim" = "gemini",
+): Promise<CompetitorExplorerRow[]> {
+  const supabase = await getSupabase();
+  const provider = engine === "gemini" ? "google_gemini" : "nvidia_nim";
+
+  // Get competitors
+  const { data: competitors } = await supabase
+    .from("competitors")
+    .select("*")
+    .eq("brand_id", brandId);
+
+  if (!competitors || competitors.length === 0) return [];
+
+  // Get all check_runs and extractions for this brand/provider
+  const { data: runs } = await supabase
+    .from("check_runs")
+    .select(
+      `
+      id,
+      checked_at,
+      check_extractions!check_extractions_check_run_id_fkey(
+        competitor_names_found,
+        cited_domains
+      )
+    `,
+    )
+    .eq("brand_id", brandId)
+    .eq("provider", provider)
+    .eq("status", "completed");
+
+  if (!runs) return [];
+
+  // Aggregate competitor mentions
+  const competitorStats = new Map<
+    string,
+    {
+      mentions: number;
+      totalCitations: number;
+      totalRuns: number;
+      positions: number[];
+      lastChecked: string | null;
+    }
+  >();
+
+  competitors.forEach((c) => {
+    competitorStats.set(c.name, {
+      mentions: 0,
+      totalCitations: 0,
+      totalRuns: 0,
+      positions: [],
+      lastChecked: null,
+    });
+  });
+
+  runs.forEach((run) => {
+    const extraction = (run as any).check_extractions?.[0];
+    if (!extraction) return;
+
+    const competitorNames = extraction.competitor_names_found ?? [];
+    const citedDomains = extraction.cited_domains?.length ?? 0;
+
+    competitorNames.forEach((name: string, idx: number) => {
+      const stats = competitorStats.get(name);
+      if (stats) {
+        stats.mentions += 1;
+        stats.totalCitations += citedDomains;
+        stats.positions.push(idx + 1);
+        if (!stats.lastChecked || run.checked_at > stats.lastChecked) {
+          stats.lastChecked = run.checked_at;
+        }
+      }
+    });
+
+    // Also track total runs for citation ratio
+    competitors.forEach((c) => {
+      const stats = competitorStats.get(c.name);
+      if (stats) stats.totalRuns += 1;
+    });
+  });
+
+  // Calculate total mentions across all competitors for share of voice
+  const totalMentions = Array.from(competitorStats.values()).reduce(
+    (sum, s) => sum + s.mentions,
+    0,
+  );
+
+  return competitors.map((c) => {
+    const stats = competitorStats.get(c.name)!;
+    const shareOfVoice = totalMentions > 0 ? (stats.mentions / totalMentions) * 100 : 0;
+    const avgPosition =
+      stats.positions.length > 0
+        ? stats.positions.reduce((a, b) => a + b, 0) / stats.positions.length
+        : 0;
+    const citationRatio =
+      stats.totalRuns > 0 ? Math.min(stats.totalCitations / stats.totalRuns / 10, 1) : 0;
+
+    return {
+      competitorId: c.id,
+      competitorName: c.name,
+      competitorDomain: null, // not in schema
+      mentions: stats.mentions,
+      shareOfVoice: Math.round(shareOfVoice * 100) / 100,
+      avgPosition: Math.round(avgPosition * 100) / 100,
+      citationRatio: Math.round(citationRatio * 100) / 100,
+      lastChecked: stats.lastChecked,
+      engine,
+    };
+  });
+}
+
+export async function getReportData(
+  brandId: string,
+  periodStart: string,
+  periodEnd: string,
+  engine: "gemini" | "nvidia-nim" = "gemini",
+): Promise<ReportData | null> {
+  const supabase = await getSupabase();
+
+  const { data: brand } = await supabase
+    .from("brands")
+    .select("id, name")
+    .eq("id", brandId)
+    .single();
+  if (!brand) return null;
+
+  const [overview, prompts, competitors] = await Promise.all([
+    computeOverviewMetrics(brandId, engine),
+    getPromptExplorerData(brandId, engine),
+    getCompetitorExplorerData(brandId, engine),
+  ]);
+
+  return {
+    brandId: brand.id,
+    brandName: brand.name,
+    periodStart,
+    periodEnd,
+    overview,
+    prompts,
+    competitors,
+    engine,
+  };
+}
+
+export async function getEmptyStateConfig(brandId: string | null): Promise<EmptyStateConfig> {
+  const supabase = await getSupabase();
+
+  let hasBrands = false;
+  let hasPrompts = false;
+  let hasCompetitors = false;
+  let hasSnapshots = false;
+  let planTier: PlanTier = "free";
+
+  if (brandId) {
+    const { data: brand } = await supabase
+      .from("brands")
+      .select("workspace_id")
+      .eq("id", brandId)
+      .single();
+
+    if (brand) {
+      hasBrands = true;
+
+      const [
+        { count: promptCount },
+        { count: competitorCount },
+        { data: snapshot },
+        { data: workspace },
+      ] = await Promise.all([
+        supabase
+          .from("prompts")
+          .select("*", { count: "exact", head: true })
+          .eq("brand_id", brandId)
+          .eq("is_active", true),
+        supabase
+          .from("competitors")
+          .select("*", { count: "exact", head: true })
+          .eq("brand_id", brandId),
+        supabaseFrom(supabase, "visibility_snapshots")
+          .select("id")
+          .eq("brand_id", brandId)
+          .limit(1)
+          .single(),
+        supabase.from("workspaces").select("plan_tier").eq("id", brand.workspace_id).single(),
+      ]);
+
+      hasPrompts = (promptCount ?? 0) > 0;
+      hasCompetitors = (competitorCount ?? 0) > 0;
+      hasSnapshots = !!snapshot;
+      planTier = (workspace?.plan_tier as PlanTier) ?? "free";
+    }
+  }
+
+  return { hasBrands, hasPrompts, hasCompetitors, hasSnapshots, planTier };
+}

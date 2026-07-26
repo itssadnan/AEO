@@ -1,26 +1,110 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  /* Dark mode (default) */
+  --color-surface-0: #0b0d10;
+  --color-surface-1: #12151a;
+  --color-surface-2: #1a1e24;
+  --color-border: #262b33;
+  --color-text-primary: #f4f5f6;
+  --color-text-secondary: #9aa1ac;
+  --color-text-tertiary: #666d78;
+
+  --color-accent: #6e5bff;
+  --color-accent-hover: #8172ff;
+  --color-accent-muted: #6e5bff1a;
+
+  --color-positive: #34d399;
+  --color-positive-muted: #34d3991a;
+  --color-negative: #fb7185;
+  --color-negative-muted: #fb71851a;
+  --color-warning: #fbbf77;
+
+  --color-engine-gemini: #6e5bff;
+  --color-engine-nvidia-nim: #34a0a4;
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Light mode */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --color-surface-0: #ffffff;
+    --color-surface-1: #f7f7f8;
+    --color-surface-2: #eeeff1;
+    --color-border: #d0d5dd;
+    --color-text-primary: #0b0d10;
+    --color-text-secondary: #475467;
+    --color-text-tertiary: #667085;
   }
 }
 
+/* Theme class overrides (for manual toggle) */
+[data-theme="light"] {
+  --color-surface-0: #ffffff;
+  --color-surface-1: #f7f7f8;
+  --color-surface-2: #eeeff1;
+  --color-border: #d0d5dd;
+  --color-text-primary: #0b0d10;
+  --color-text-secondary: #475467;
+  --color-text-tertiary: #667085;
+}
+
+[data-theme="dark"] {
+  --color-surface-0: #0b0d10;
+  --color-surface-1: #12151a;
+  --color-surface-2: #1a1e24;
+  --color-border: #262b33;
+  --color-text-primary: #f4f5f6;
+  --color-text-secondary: #9aa1ac;
+  --color-text-tertiary: #666d78;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-surface-0);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01";
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Scrollbar styling for dark mode */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-surface-0);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-tertiary);
+}
+
+/* Focus visible styles for accessibility */
+*:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Transition for theme changes */
+* {
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
 }

@@ -29,12 +29,15 @@ AEO/
         admin/
         free-check/
         growth-automation/
+        dashboard/
       lib/
         ai-providers/               AIProvider interface + GeminiProvider, NvidiaNimProvider, (later) OpenAIProvider etc.
         cache/                      Cache helpers (Postgres-TTL based at MVP scale — see Section 4)
         db/                         Supabase client, typed query helpers
         security/                   Validation schemas, rate-limit middleware, webhook verification
       types/                        Shared TypeScript types / zod schemas, imported by both server and client code
+      components/                   Presentation-only, cross-view UI primitives with no data-fetching or business logic of their own — analogous to src/modules/ for business logic, but for UI
+        ui/                         Base component primitives (Card, MetricStat, EngineBadge, PlanBadge, CalculationDisclosure, Drawer, LockedPanel, EmptyState, DataTable, Tabs, ThemeToggle)
     tests/
       unit/
       integration/
