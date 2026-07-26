@@ -36,7 +36,6 @@ export function CompetitorExplorerView({
   overview,
   emptyState,
   competitors,
-  prompts,
   workspace,
 }: CompetitorExplorerViewProps) {
   const [engine, setEngine] = useState<"gemini" | "nvidia-nim">("gemini");

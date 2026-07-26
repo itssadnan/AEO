@@ -1,7 +1,7 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { runGeminiGroundedPrompt } from "../../src/lib/ai-providers/gemini-provider.ts";
-import { AiProviderError, resetKeyPoolForTests } from "../../src/lib/ai-providers/key-pool.ts";
+import { resetKeyPoolForTests } from "../../src/lib/ai-providers/key-pool.ts";
 import { runNvidiaNimPrompt } from "../../src/lib/ai-providers/nvidia-nim-provider.ts";
 
 describe("Gemini grounded provider", () => {

@@ -9,10 +9,6 @@ import {
 import { Header } from "./header";
 import { Navigation } from "./navigation";
 import { OverviewView } from "./overview-view";
-import { PromptExplorerView } from "./prompt-explorer-view";
-import { CompetitorExplorerView } from "./competitor-explorer-view";
-import { ReportsView } from "./reports-view";
-import { SettingsView } from "./settings-view";
 
 type UserRole = "owner" | "member" | "viewer";
 

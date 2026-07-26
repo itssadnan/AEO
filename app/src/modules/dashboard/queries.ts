@@ -11,17 +11,16 @@ import type {
 } from "./types";
 import type { VisibilitySnapshotRow } from "./database-extensions";
 
-type CheckRun = Database["public"]["Tables"]["check_runs"]["Row"];
-type Brand = Database["public"]["Tables"]["brands"]["Row"];
-type Competitor = Database["public"]["Tables"]["competitors"]["Row"];
-type Prompt = Database["public"]["Tables"]["prompts"]["Row"];
-type Workspace = Database["public"]["Tables"]["workspaces"]["Row"];
-
 // Type assertion helper for tables not yet in generated types
 const supabaseFrom = (
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   table: string,
-) => supabase.from(table as any);
+) =>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- visibility_snapshots and
+  // brand_subscriptions (see database-extensions.ts) aren't in the generated Database type yet;
+  // supabase-js's .from() requires a known table-name union, so this is a deliberate escape
+  // hatch until app/src/types/database.ts is regenerated from the live schema.
+  supabase.from(table as any);
 
 async function getSupabase() {
   return createSupabaseServerClient();
@@ -63,8 +62,13 @@ export async function getBrandWithRelations(brandId: string): Promise<BrandWithR
 
 export async function getLatestVisibilitySnapshot(
   brandId: string,
+  // Not yet consumed: visibility_snapshots (migration 0016) has no per-engine column to filter
+  // on today, and nothing calls this function yet. Kept in the signature since sibling query
+  // functions in this file all take the same (brandId, engine) shape; wire this up for real if a
+  // caller needs it rather than guessing at a filter now.
   engine: "gemini" | "nvidia_nim" = "gemini",
 ): Promise<VisibilitySnapshotRow | null> {
+  void engine;
   const supabase = await getSupabase();
 
   const { data } = await supabaseFrom(supabase, "visibility_snapshots")
@@ -90,6 +94,9 @@ export async function computeOverviewMetrics(
     .eq("brand_id", brandId)
     .order("generated_at", { ascending: false })
     .limit(1)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- only `data` is read below
+    // (checked via truthiness); `error` isn't reused, so a precise Postgrest error type isn't
+    // worth reproducing here.
     .single()) as { data: VisibilitySnapshotRow | null; error: any };
 
   // Get competitor count
@@ -123,6 +130,9 @@ export async function computeOverviewMetrics(
     const brandShare = shareOfVoice[brandName] ?? 0;
 
     // Calculate rank from share_of_voice
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- share_of_voice is stored as
+    // JSONB (the generated Json type); this { competitors: [...] } shape comes from the SQL
+    // scoring function in migration 0016 and isn't represented in the generated Json type.
     const competitors = (shareOfVoice as any).competitors ?? [];
     const higherCompetitors = competitors.filter(
       (c: { share_pct: number }) => c.share_pct > brandShare,
@@ -196,6 +206,9 @@ export async function getPromptExplorerData(
   const promptMap = new Map(prompts?.map((p) => [p.id, p.text]) ?? []);
 
   return runs.map((run) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- supabase-js doesn't infer
+    // the joined check_extractions relation's shape from the .select() template string above;
+    // the real columns are validated by that query string against the live schema at request time.
     const extraction = (run as any).check_extractions?.[0];
     const brandMentioned = extraction?.brand_mentioned ?? false;
     const brandPosition = extraction?.position_among_competitors ?? null;
@@ -282,6 +295,9 @@ export async function getCompetitorExplorerData(
   });
 
   runs.forEach((run) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- same reason as
+    // getPromptExplorerData above: the joined check_extractions relation's shape isn't inferred
+    // from the .select() template string, only validated by it against the live schema.
     const extraction = (run as any).check_extractions?.[0];
     if (!extraction) return;
 

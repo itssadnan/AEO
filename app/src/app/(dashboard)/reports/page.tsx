@@ -57,7 +57,11 @@ export default async function ReportsPage({
   const params = await searchParams;
   const brandId = params.brandId ?? brands?.[0]?.id;
   const engine = params.engine ?? "gemini";
-  const period = params.period ?? "30d";
+  // Note: `period` isn't wired up yet — ReportsView manages its own period state
+  // client-side (defaults to "30d") rather than accepting it as a prop. The
+  // `?period=` search param is accepted here for a future deep-link feature but
+  // currently has no effect; not removing the type since the URL contract is
+  // intentional, just not yet consumed.
 
   if (!brandId) {
     return (

@@ -8,7 +8,7 @@ import { LockedPanel } from "@/components/ui/locked-panel";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CalculationDisclosure } from "@/components/ui/calculation-disclosure";
 import { Button } from "@/components/ui/button";
-import { formatRelativeTime, formatNumber, formatPercent } from "@/lib/utils";
+import { formatNumber, formatPercent } from "@/lib/utils";
 import type {
   BrandWithRelations,
   OverviewMetrics,
@@ -30,14 +30,7 @@ interface ReportsViewProps {
 /**
  * Reports view — scheduled PDF/CSV reports and on-demand generation.
  */
-export function ReportsView({
-  brand,
-  overview,
-  emptyState,
-  competitors,
-  prompts,
-  workspace,
-}: ReportsViewProps) {
+export function ReportsView({ brand, overview, competitors, workspace }: ReportsViewProps) {
   const [engine, setEngine] = useState<"gemini" | "nvidia-nim">("gemini");
   const [period, setPeriod] = useState<"7d" | "30d" | "90d">("30d");
   const [reportData, setReportData] = useState<ReportData | null>(null);

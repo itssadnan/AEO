@@ -21,7 +21,7 @@ export async function runNvidiaNimPrompt(options: {
     mode: options.failoverMode,
     knownDeadSlots: options.knownDeadSlots,
     onKeyDead: options.onKeyDead,
-    run: async (key, slot) => {
+    run: async (key) => {
       let response: Response;
       try {
         response = await fetchImpl("https://integrate.api.nvidia.com/v1/chat/completions", {

@@ -33,13 +33,21 @@ export function Navigation({
 }: NavigationProps) {
   const pathname = usePathname();
   const [brandId, setBrandId] = useState<string | null>(selectedBrandId);
+  // Not yet used for display — kept for a future "signed in as" footer; see
+  // the no-op reference below rather than inventing that UI here.
+  void userEmail;
 
+  // Real routes are the route-group's own pages (/overview, /prompts, ...),
+  // which read brandId from a `?brandId=` search param, not a path segment.
+  // NOTE: these previously pointed at nonexistent `/dashboard/${brandId}/...`
+  // paths (dead links, would 404 for every user) — found and fixed while
+  // cleaning up this file's unused-var lint warnings.
   const views = [
-    { href: `/dashboard/${brandId}/overview`, label: "Overview", icon: "📊" },
-    { href: `/dashboard/${brandId}/prompts`, label: "Prompt Explorer", icon: "💬" },
-    { href: `/dashboard/${brandId}/competitors`, label: "Competitor Explorer", icon: "🏢" },
-    { href: `/dashboard/${brandId}/reports`, label: "Reports", icon: "📄" },
-    { href: `/dashboard/${brandId}/settings`, label: "Settings", icon: "⚙️" },
+    { basePath: "/overview", label: "Overview", icon: "📊" },
+    { basePath: "/prompts", label: "Prompt Explorer", icon: "💬" },
+    { basePath: "/competitors", label: "Competitor Explorer", icon: "🏢" },
+    { basePath: "/reports", label: "Reports", icon: "📄" },
+    { basePath: "/settings", label: "Settings", icon: "⚙️" },
   ];
 
   if (!brandId && brands.length === 0) {
@@ -60,8 +68,6 @@ export function Navigation({
       </aside>
     );
   }
-
-  const currentBrand = brands.find((b) => b.id === brandId) ?? brands[0];
 
   return (
     <aside className="w-64 lg:w-72 flex-shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface-1)] flex flex-col">
@@ -96,8 +102,8 @@ export function Navigation({
       {/* View navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {views.map((view) => {
-          const href = view.href.replace("/dashboard/", `/dashboard/${brandId}`);
-          const isActive = pathname === href;
+          const href = brandId ? `${view.basePath}?brandId=${brandId}` : view.basePath;
+          const isActive = pathname === view.basePath;
           return (
             <Link
               key={view.label}

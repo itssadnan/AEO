@@ -7,7 +7,6 @@ import { PlanBadge } from "@/components/ui/plan-badge";
 import { LockedPanel } from "@/components/ui/locked-panel";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
-import { formatRelativeTime } from "@/lib/utils";
 import type {
   BrandWithRelations,
   OverviewMetrics,
@@ -28,14 +27,7 @@ interface SettingsViewProps {
 /**
  * Settings view — brand settings, competitor management, prompt management, billing.
  */
-export function SettingsView({
-  brand,
-  overview,
-  emptyState,
-  competitors,
-  prompts,
-  workspace,
-}: SettingsViewProps) {
+export function SettingsView({ brand, competitors, prompts, workspace }: SettingsViewProps) {
   const [activeTab, setActiveTab] = useState<"brand" | "competitors" | "prompts" | "billing">(
     "brand",
   );
