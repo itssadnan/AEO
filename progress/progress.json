@@ -11,7 +11,7 @@
   "specDoc": "docs/spec/AEO_Visibility_Platform_Spec_v1.1.docx",
   "conventionsDoc": "docs/CONVENTIONS.md",
   "specVersion": "1.1",
-  "lastUpdated": "2026-07-25",
+  "lastUpdated": "2026-07-26",
   "leftForFinalTouches": "progress/LEFT_FOR_FINAL_TOUCHES.md",
   "statusValues": [
     "not_started",
@@ -112,7 +112,9 @@
       "status": "in_review",
       "percentComplete": 95,
       "dependsOn": [],
-      "blocks": ["5.1"],
+      "blocks": [
+        "5.1"
+      ],
       "owner": "unassigned",
       "filesTouched": [
         "app/ (full Next.js project scaffold)",
@@ -176,8 +178,13 @@
       "specSection": "5.1",
       "status": "done",
       "percentComplete": 100,
-      "dependsOn": ["0.0"],
-      "blocks": ["5.2", "5.9"],
+      "dependsOn": [
+        "0.0"
+      ],
+      "blocks": [
+        "5.2",
+        "5.9"
+      ],
       "owner": "unassigned",
       "filesTouched": [
         "app/supabase/migrations/0001_auth_and_workspaces.sql",
@@ -351,8 +358,12 @@
       "specSection": "5.2",
       "status": "done",
       "percentComplete": 100,
-      "dependsOn": ["5.1"],
-      "blocks": ["5.3"],
+      "dependsOn": [
+        "5.1"
+      ],
+      "blocks": [
+        "5.3"
+      ],
       "owner": "unassigned",
       "filesTouched": [
         "app/supabase/migrations/0005_brand_prompt_configuration.sql",
@@ -421,8 +432,15 @@
       "specSection": "5.3",
       "status": "in_progress",
       "percentComplete": 98,
-      "dependsOn": ["5.2"],
-      "blocks": ["5.4", "5.6", "5.10", "5.11"],
+      "dependsOn": [
+        "5.2"
+      ],
+      "blocks": [
+        "5.4",
+        "5.6",
+        "5.10",
+        "5.11"
+      ],
       "owner": "unassigned",
       "filesTouched": [
         "app/supabase/migrations/0007_engine_query_engine.sql",
@@ -552,8 +570,12 @@
       "specSection": "5.4",
       "status": "done",
       "percentComplete": 100,
-      "dependsOn": ["5.3"],
-      "blocks": ["5.5"],
+      "dependsOn": [
+        "5.3"
+      ],
+      "blocks": [
+        "5.5"
+      ],
       "owner": "unassigned",
       "filesTouched": [
         "app/supabase/migrations/0013_nlp_extraction_and_structuring.sql",
@@ -648,12 +670,30 @@
       "name": "Visibility Scoring, Share-of-Voice & Explanation Engine",
       "phase": "2",
       "specSection": "5.5",
-      "status": "not_started",
-      "percentComplete": 0,
-      "dependsOn": ["5.4"],
-      "blocks": ["5.8", "5.12"],
-      "owner": "unassigned",
-      "filesTouched": [],
+      "status": "in_review",
+      "percentComplete": 90,
+      "dependsOn": [
+        "5.4"
+      ],
+      "blocks": [
+        "5.8",
+        "5.12"
+      ],
+      "owner": "delegate-model (implemented) + Claude (verified)",
+      "filesTouched": [
+        "app/supabase/migrations/0016_visibility_scoring_and_explanation.sql",
+        "app/supabase/migrations/0017_scoring_worker_cron.sql",
+        "app/src/modules/scoring-explanation/schemas.ts",
+        "app/src/modules/scoring-explanation/prompt.ts",
+        "app/src/modules/scoring-explanation/parse-explanation-response.ts",
+        "app/src/modules/scoring-explanation/index.ts",
+        "app/supabase/functions/_shared/scoring-explanation.ts",
+        "app/supabase/functions/scoring-worker/index.ts",
+        "app/tests/unit/scoring-explanation.test.ts",
+        "app/.env.example",
+        "docs/architecture/entity-relationship-diagram.md",
+        "app/package.json"
+      ],
       "acceptanceCriteria": [
         {
           "text": "Visibility Score (0-100), raw mention count, and average rank computed and stored",
@@ -690,8 +730,8 @@
       ],
       "cachingNotes": "Aggregates (score, share-of-voice, explanation) are recomputed only when a new check result lands for that brand — cache the computed result and invalidate on new data, rather than recomputing on every dashboard load.",
       "securityNotes": "Recommendation text is model-generated — label it as guidance in the UI, never as a guarantee, to avoid overstating certainty to customers.",
-      "lastUpdated": "2026-07-23",
-      "lastUpdatedBy": null,
+      "lastUpdated": "2026-07-26",
+      "lastUpdatedBy": "Claude (independent verification pass)",
       "decisionsLog": [
         {
           "date": "2026-07-23",
@@ -708,6 +748,18 @@
         {
           "date": "2026-07-25",
           "text": "Full implementation spec written: progress/specs/5.5-visibility-scoring-share-of-voice-and-explanation-engine.md. Confirmed exact requirements against the source docx's Section 5.5 directly (python-docx text extraction, not this file's condensed summary) plus Section 3.5 (Trust & Transparency) and Section 4 (System Architecture Overview) for supporting context. Confirmed via that same read that this module is pure backend ('Pure SQL/backend aggregation for scoring and share-of-voice; one NVIDIA NIM call per brand per check cycle...') — Module 5.6 (Dashboard/Frontend) owns 100% of the UI for this data; 5.5 has no frontend deliverable. Key architecture calls: (1) unlike 5.3/5.4's 'enqueue empty row, worker fills everything' pattern, a visibility_snapshots row is inserted already containing its real score/mention_count/avg_rank/share_of_voice/source_influence/opportunity_gaps -- pure SQL, zero external dependency, computed synchronously; the status/queue/retry machinery applies ONLY to the optional, paid-only explanation-prose sub-step; (2) trigger model is a periodic (every 30 min) cron scan for brands with fresh check_extractions data since their last snapshot, computing a rolling 7-day window -- not a per-check trigger, matching this module's own caching note; (3) this same freshness-check mechanism, unmodified, satisfies the Free-plan '3-point trend' acceptance criterion for free -- no special-case code needed, since 3 sparse lifetime experiments naturally produce exactly 3 snapshot rows over time; (4) the Explanation Engine's NVIDIA NIM call is restricted to prose + confidence-tagged actions ONLY, never asked to compute or restate a number -- a direct response to the 5.4 live smoke test's finding (2026-07-25) that this model class doesn't reliably self-check literal facts even when explicitly instructed to; every number is deterministic SQL computed before the model ever sees it; (5) extends the ER diagram's documented visibility_snapshots shape with workspace_id, source_influence (new -- the ER diagram's current column list has no place for this distinct acceptance criterion), explanation_skip_reason, and the explanation-sub-step's queue/retry columns -- the spec requires updating docs/architecture/entity-relationship-diagram.md as part of the deliverable, keeping docs in lockstep per CLAUDE.md's central rule. Spec also has a dedicated 'lessons from 5.4's delegation' section addressing every real gap independent verification found in that module (hand-edited database.ts, an invented type, a false .env.example claim, unrelated files swept into a commit, unverified live-step claims) as explicit do-not-repeat items. Status/percentComplete intentionally left unchanged (not_started/0) -- a spec is not an implementation."
+        },
+        {
+          "date": "2026-07-26",
+          "text": "Implemented by an external delegate model per progress/specs/5.5-*.md, then independently verified against ground truth (tsc --noEmit, eslint, prettier --check, git diff/status, line-by-line SQL-vs-spec comparison) rather than the delegate's self-report. Confirmed true: migration 0016/0017 match spec SQL byte-for-byte, Deno mirror has no drift, DOMAIN_TYPES stays in sync with nlp-extraction/schemas.ts, no scope creep, no hand-edited database.ts, types/lint/format all clean. Real gap found and fixed directly: the required entity-relationship-diagram.md visibility_snapshots column-reference update and design-decision sentence were missing (delegate added an unrelated but separately-correct CHECK_EXTRACTIONS relationship instead) -- fixed in this pass. Real deviation found and left for Heisenberg's decision, not silently fixed: buildExplanationPrompt in prompt.ts adds an unspecified explanationBreakdown param and an invented numeric confidence-threshold rule not in the spec's reference implementation -- functionally harmless (doesn't ask the model to compute anything) but an unflagged off-spec design choice. Could not confirm 'tests pass' independently: node --test fails to even load this test file and the already-done 5.4 nlp-extraction.test.ts on an identical @/ path-alias resolution error in this sandbox -- pre-existing across both modules, not a 5.5 regression, but unverified as a real pass/fail until run in an environment where it resolves. Status set to in_review, not done: migrations not applied live, Edge Function not deployed, no live NVIDIA NIM call made, no commit/push yet so no Vercel deploy check possible (progress.json's definitionOfDone->deploy item applies since this touches app/src/modules/**). Full detail in progress/modules/5.5-*.md."
+        },
+        {
+          "date": "2026-07-26",
+          "text": "Follow-up pass per Heisenberg: finalized the prompt.ts design deviation flagged in the prior entry, rather than delegating the remaining work (judged not worth it -- the remaining items are either a design judgment call or live-infra operations requiring this session's Supabase/Vercel MCP access, neither of which a delegate model can usefully do). Kept the delegate's precomputed-citation-ratio instinct but sourced it from one place only (SQL, via a new citation_ratio column on claim_visibility_explanation_jobs, migration 0016 edited in place -- safe pre-live-apply); dropped the redundant duplicate breakdown field; reverted the invented numeric confidence-threshold rule back to the spec's qualitative rubric, since a percentage-threshold comparison is itself the class of numeric judgment the 5.4 smoke test already proved this model class fails at. Also found and fixed, while re-reading the code for the redesign: parse-explanation-response.ts had its own local AiProviderError class instead of importing the one shared class every other module uses (@/lib/ai-providers/errors) -- fixed, matching nlp-extraction's exact pattern; the Deno mirror's separate local class was correctly left alone. Root-caused and fixed the @/ path-alias test failure flagged as unverified in the prior entry: it was real and pre-existing (also broke the already-done 5.4 test identically), not sandbox-only -- node --test has no loader for tsconfig paths. Fixed by swapping node for tsx (already a devDependency) in package.json's test/test:watch scripts, keeping --conditions=react-server. npm test -- the literal command CI runs -- now passes 84/84, up from 30/32 with 2 files crashing before this fix; this silently fixes CI for 5.4 too, which may have been red since that module shipped. tsc/eslint/prettier re-verified clean. Still not done: nothing committed/pushed, migrations not applied live, scoring-worker not deployed, no live NVIDIA NIM call, no Vercel deploy check yet -- proceeding to those next."
+        },
+        {
+          "date": "2026-07-26",
+          "text": "Live infrastructure pass. Applied migration 0016 to the live Supabase project (vloradmcvozmhvvxiyvd) via the Supabase MCP connector. Found and fixed a third real bug, this one only catchable by actually executing the SQL: run_visibility_scoring_cycle() failed on first live call with 'aggregate function calls cannot contain window function calls' -- two blocks (source_influence, explanation_breakdown.breakdown) nested a window function directly inside a jsonb_agg() call, invalid in Postgres. This bug was in the spec's own reference SQL, copied verbatim, and missed by tsc/eslint/spec-diff in the first verification pass since none of those execute SQL. Fixed in the migration source and hotfixed live via create-or-replace (source and live DB now match; no separate migration file needed since 0016 hasn't shipped to anyone else). Live smoke test after the fix: run_visibility_scoring_cycle() created 1 real snapshot with correct data (score 100, mention_count 1, avg_rank 1.0, correctly gated status=not_applicable/explanation_skip_reason=free_plan for this free-tier test workspace); claim_visibility_explanation_jobs and reclaim_stale_visibility_explanations both ran cleanly. The paid-plan/competitor-ahead branch remains unexercised live -- no matching test data exists yet. Deployed scoring-worker as a live Edge Function (ACTIVE). Three items explicitly NOT done, each needs Heisenberg: migration 0017 (cron) was blocked by this session's own auto-mode safety classifier and not bypassed; SCORING_WORKER_SECRET can't be set via any available MCP tool (needs supabase secrets set or dashboard); commit+push is blocked by both a missing git credential in this sandbox (no SSH key/gh auth for git@github.com:itssadnan/AEO.git) and a .git/index.lock this session could not and should not force-remove (may reflect a live process on Heisenberg's actual machine). Full detail in progress/modules/5.5-*.md."
         }
       ],
       "blockers": [],
@@ -720,7 +772,9 @@
       "specSection": "5.6",
       "status": "not_started",
       "percentComplete": 0,
-      "dependsOn": ["5.3"],
+      "dependsOn": [
+        "5.3"
+      ],
       "blocks": [],
       "owner": "unassigned",
       "filesTouched": [],
@@ -774,8 +828,12 @@
       "specSection": "5.7",
       "status": "not_started",
       "percentComplete": 0,
-      "dependsOn": ["0.0"],
-      "blocks": ["5.11"],
+      "dependsOn": [
+        "0.0"
+      ],
+      "blocks": [
+        "5.11"
+      ],
       "owner": "unassigned",
       "filesTouched": [],
       "acceptanceCriteria": [
@@ -811,7 +869,9 @@
       "specSection": "5.8",
       "status": "not_started",
       "percentComplete": 0,
-      "dependsOn": ["5.5"],
+      "dependsOn": [
+        "5.5"
+      ],
       "blocks": [],
       "owner": "unassigned",
       "filesTouched": [],
@@ -840,7 +900,9 @@
       "specSection": "5.9",
       "status": "not_started",
       "percentComplete": 0,
-      "dependsOn": ["5.1"],
+      "dependsOn": [
+        "5.1"
+      ],
       "blocks": [],
       "owner": "unassigned",
       "filesTouched": [],
@@ -889,7 +951,9 @@
       "specSection": "5.10",
       "status": "not_started",
       "percentComplete": 0,
-      "dependsOn": ["5.3"],
+      "dependsOn": [
+        "5.3"
+      ],
       "blocks": [],
       "owner": "unassigned",
       "filesTouched": [],
@@ -959,8 +1023,13 @@
       "specSection": "5.11",
       "status": "not_started",
       "percentComplete": 0,
-      "dependsOn": ["5.3", "5.7"],
-      "blocks": ["5.12"],
+      "dependsOn": [
+        "5.3",
+        "5.7"
+      ],
+      "blocks": [
+        "5.12"
+      ],
       "owner": "unassigned",
       "filesTouched": [],
       "acceptanceCriteria": [
@@ -988,7 +1057,10 @@
       "specSection": "5.12",
       "status": "not_started",
       "percentComplete": 0,
-      "dependsOn": ["5.11", "5.5"],
+      "dependsOn": [
+        "5.11",
+        "5.5"
+      ],
       "blocks": [],
       "owner": "unassigned",
       "filesTouched": [],
@@ -1025,7 +1097,9 @@
       "specSection": "6.3",
       "status": "not_started",
       "percentComplete": 0,
-      "dependsOn": ["5.3"],
+      "dependsOn": [
+        "5.3"
+      ],
       "blocks": [],
       "owner": "unassigned",
       "filesTouched": [],
