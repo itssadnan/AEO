@@ -184,6 +184,19 @@ begin
       -- duplicated-source-of-truth risk as the Deno/Node provider file pairs
       -- elsewhere in this project. Flag this in your report, don't just copy it
       -- silently.
+      -- Found live 2026-07-26, during 5.5's finish-out smoke test: as
+      -- originally written, brand_citations had no `ce.brand_mentioned`
+      -- filter, so it counted cited_domain_types across ALL of this brand's
+      -- completed extraction rows -- a strict superset of competitor_citations
+      -- (which filters to rows where the competitor is mentioned). Since
+      -- competitor_citation_count(dt) <= brand_citation_count(dt) for every
+      -- domain_type by construction, the gap condition below
+      -- (brand_citation_count = 0 AND competitor_citation_count > 0) could
+      -- never be true -- opportunity_gaps was structurally guaranteed to
+      -- always be '[]', regardless of real data. Fixed by scoping
+      -- brand_citations to rows where the brand itself was actually
+      -- mentioned, so it's a genuinely different population from
+      -- competitor_citations and the comparison is meaningful.
       with domain_types(domain_type) as (
         values ('review_site'), ('comparison_page'), ('forum'), ('documentation'), ('other')
       ),
@@ -192,6 +205,7 @@ begin
         from public.check_extractions ce, jsonb_array_elements(ce.cited_domain_types) elem
         where ce.brand_id = r_brand.brand_id and ce.status = 'completed'
           and ce.extracted_at::date between v_period_start and v_period_end
+          and ce.brand_mentioned
         group by (elem->>'type')
       ),
       competitor_citations as (

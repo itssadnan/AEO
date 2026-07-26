@@ -670,8 +670,8 @@
       "name": "Visibility Scoring, Share-of-Voice & Explanation Engine",
       "phase": "2",
       "specSection": "5.5",
-      "status": "in_review",
-      "percentComplete": 95,
+      "status": "done",
+      "percentComplete": 100,
       "dependsOn": [
         "5.4"
       ],
@@ -697,41 +697,41 @@
       "acceptanceCriteria": [
         {
           "text": "Visibility Score (0-100), raw mention count, and average rank computed and stored",
-          "done": false
+          "done": true
         },
         {
           "text": "Share-of-Voice vs named competitors, trended weekly",
-          "done": false
+          "done": true
         },
         {
           "text": "Source Influence report (citation domains by type) computed",
-          "done": false
+          "done": true
         },
         {
           "text": "Explanation Engine: percentage breakdown of why a competitor is cited more, via one NVIDIA NIM call per brand per check cycle, model resolved via resolveTaskModel(\"explanation_generation\", workspaceId) against ai_task_configs — not hardcoded in this module",
-          "done": false
+          "done": true
         },
         {
           "text": "Opportunity Finder: gap list of cited source types the brand has zero presence on",
-          "done": false
+          "done": true
         },
         {
           "text": "Recommended actions are confidence-tagged (High/Medium/Low), never stated as flat guarantees",
-          "done": false
+          "done": true
         },
         {
           "text": "Explanation Engine, Opportunity Finder, and recommended actions are computed only for paid-plan workspaces (workspaces.plan_tier != 'free') — gated here, not just hidden in the UI, so Free-plan traffic never triggers the NVIDIA NIM call at all",
-          "done": false
+          "done": true
         },
         {
           "text": "Free-plan workspaces get Visibility Score, mention count, average rank, Share-of-Voice, and Source Influence only; after the 3rd (final) lifetime experiment, one aggregate report is generated combining all 3 runs into a 3-point trend — still without the Explanation Engine",
-          "done": false
+          "done": true
         }
       ],
       "cachingNotes": "Aggregates (score, share-of-voice, explanation) are recomputed only when a new check result lands for that brand — cache the computed result and invalidate on new data, rather than recomputing on every dashboard load.",
       "securityNotes": "Recommendation text is model-generated — label it as guidance in the UI, never as a guarantee, to avoid overstating certainty to customers.",
       "lastUpdated": "2026-07-26",
-      "lastUpdatedBy": "Claude (independent verification pass)",
+      "lastUpdatedBy": "Claude (smoke test completed, synthetic test data cleaned up, status flipped to done)",
       "decisionsLog": [
         {
           "date": "2026-07-23",
@@ -764,6 +764,10 @@
         {
           "date": "2026-07-26",
           "text": "Finish-out pass, resolving all three blockers from the prior entry per Heisenberg's direction (retry 0017, generate secret via Vault SQL, investigate existing deploy key rather than assume push was impossible). Git: found the repo's .git/config (core.sshCommand) and .git/ssh_config (IdentityFile) both pointed at a previous sandbox session's now-gone mount path -- same class of issue 5.4's decisions log already documents fixing once (recurs every new session since each gets a differently-named mount). The deploy key file itself (.git/deploy_key) was present and fine. Fixed both paths to this session's actual mount; also worked around a .git/index.lock the filesystem wouldn't let git unlink (mv instead of rm -- confirmed via .git/index.lock.stale* that prior sessions hit and solved this identically). Committed c24b8ed (14 files) and pushed to origin/main. Migration 0017: retried and it applied; while sanity-checking against 0014's proven pattern before trusting it, found a fourth real bug -- the spec's vault.decrypt(...) call isn't a real Supabase Vault function and would have made the cron job silently fail forever. Fixed to use vault.decrypted_secrets, matching 0014 exactly; re-applied live via cron.schedule (idempotent by job name); confirmed active with correct command text. SCORING_WORKER_SECRET: generated and stored in Vault via vault.create_secret; the Edge Function's own Deno-env half of this secret still needs Heisenberg's action (no MCP tool covers it) -- the only remaining blocker. Vercel: confirmed via the Vercel MCP connector, not assumed -- deployment dpl_GkgV85ykEibXtNkr1B3ZdebYeZC8 for commit c24b8ed is READY in production. Everything achievable without dashboard access is now done and live-verified; percentComplete 90 -> 95. Full detail in progress/modules/5.5-*.md."
+        },
+        {
+          "date": "2026-07-26",
+          "text": "Smoke-test completion pass. Heisenberg confirmed the scoring-worker Edge Function's SCORING_WORKER_SECRET was set. Constructed a disposable paid-plan/competitor-ahead test scenario (no such data existed in real usage yet): added a competitor to the existing paid smoketest brand, inserted 5 check_runs with their auto-created check_extractions rows updated (2 brand-mentioned, 3 not, all citing the competitor). Found and fixed a fourth real bug while constructing this test data -- a structural logic error, not a syntax error, and the subtlest found in this module's whole verification history: run_visibility_scoring_cycle()'s opportunity_gaps block computed brand_citations without filtering on ce.brand_mentioned, while competitor_citations did filter on the competitor being found, making brand_citations a strict superset of competitor_citations by construction -- so the gap condition (brand_citation_count = 0 AND competitor_citation_count > 0) could never be true. The function ran without error and returned a plausible-looking empty array forever, a completely non-functional Opportunity Finder that no prior static check or the first live smoke test (which happened to hit Free-plan data with zero competitors) had any way to catch. Fixed by adding 'and ce.brand_mentioned' to the brand_citations CTE (migration 0016 source + live hotfix). Verified fixed with real constructed data: opportunity_gaps now correctly populates (competitor_pct: 60, brand_citation_count: 0, competitor_citation_count: 3) and the snapshot's status is queued. Invoked the deployed scoring-worker Edge Function for real, authenticated with the shared secret: {\"processed\":1,\"reclaimed\":0}, HTTP 200. Confirmed a genuine, successful, end-to-end NVIDIA NIM explanation call by querying the resulting visibility_snapshots row: status completed, explanation_provider nvidia_nim, explanation_model meta/llama-3.1-8b-instruct, attempts 1, last_error_code null, with a coherent, data-specific explanation and 4 confidence-tagged recommended actions (high/medium/medium/low), no flat-guarantee language -- satisfying every remaining unverified acceptance criterion with real evidence, not a self-report. Cleaned up all synthetic test data (5 check_extractions rows, 5 check_runs rows, the competitor row, the resulting visibility_snapshots row), identified precisely via competitor_names_found containment rather than a broad time-window delete (the smoketest brand is reused across 5.3/5.4/5.5 verification; a naive 'created in the last day' query pulled 108 unrelated rows). Confirmed count(*) = 0 after deletion, restoring the true near-empty-data state that Module 5.6's spec explicitly designs its first-run/empty-state UI around. Every acceptance criterion now has real, live-verified evidence. No blockers remain. Status flipped to done, percentComplete to 100. Full detail in progress/modules/5.5-*.md."
         }
       ],
       "blockers": [],
@@ -814,12 +818,16 @@
       ],
       "cachingNotes": "Use Next.js data cache with tag-based revalidation, invalidated when a new check result lands for that brand — avoids recomputing/refetching on every page view between check cycles.",
       "securityNotes": "CSRF protection on forms; all AI-sourced text (answers, explanations) rendered via safe text components, never dangerouslySetInnerHTML — it is untrusted third-party content.",
-      "lastUpdated": "2026-07-23",
-      "lastUpdatedBy": null,
+      "lastUpdated": "2026-07-26",
+      "lastUpdatedBy": "Claude (spec written, not implemented)",
       "decisionsLog": [
         {
           "date": "2026-07-23",
           "text": "Competitor Explorer shows a visible locked/upsell state for Explanation Engine/Opportunity Finder on Free-plan workspaces rather than hiding the panels outright, and the Overview surfaces remaining free-experiment count. Part of the wider Free-plan redesign — see progress/modules/5.9-billing-and-subscription.md decisions log."
+        },
+        {
+          "date": "2026-07-26",
+          "text": "Full implementation spec written: progress/specs/5.6-dashboard-frontend.md, per Heisenberg's request for a design brief grounded in real competitor research plus an implementation spec. Researched the spec docx's own named competitor list (Section 2.3) directly -- Profound's near-black enterprise UI, Peec AI's four-area structure (near-identical to this module's five-view split) and its documented weakness of overwhelming first-time users, Otterly.AI's single-benchmark-number philosophy -- plus 2026 SaaS-dashboard design-pattern research (progressive disclosure as the dominant pattern: Linear/Vercel/Stripe/Notion/Supabase/Raycast/Sentry). Synthesized into a specific design system: dark-mode-first true-near-black surfaces, a single not-blue violet-indigo accent, Geist Sans/Mono with tabular numerals, borders-not-shadows elevation, and a reusable CalculationDisclosure component built as the product's actual Trust & Transparency differentiator (Section 3.5), not an afterthought -- reasoning is that Section 2.3 states outright there's no technology moat in this category, so the UI/trust experience is one of the few places left to compete. Spec includes a dedicated 'lessons from 5.4 and 5.5' section compiling every real defect independent verification found in both prior delegations (self-reports wrong despite correct code, satisfying an instruction's letter with an unrelated fix instead of the actual one asked for, inventing unrequested design choices, duplicating an existing shared utility, spec-provided reference code itself containing real bugs only live execution caught, and Module 5.2's real incident where a client/server bundle-boundary bug passed every static check and only a live Vercel build caught it) as explicit do-not-repeat items, plus one extended for this module: never let the frontend recompute a number the backend already computed. Flagged rather than silently resolved: progress.json lists only 5.3 as this module's dependency, but real data needs 5.4/5.5 too -- spec instructs building against near-empty current data as the designed first-run case. Introduces a new app/src/components/ui/ folder (documented as a required CONVENTIONS.md addition, not just used silently). Status/percentComplete intentionally unchanged -- a spec is not an implementation, same precedent as 5.5's own spec-writing entry."
         }
       ],
       "blockers": [],
