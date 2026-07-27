@@ -12,6 +12,11 @@ import { AUDITED_BOTS } from "./types";
 const FETCH_TIMEOUT_MS = 8000;
 const MAX_BODY_SIZE = 500_000; // 500 KB cap on response bodies
 
+// Configurable so the UA string can be updated (e.g. once a real product
+// domain is finalized) without a code change. See app/.env.example.
+const CRAWL_AUDIT_USER_AGENT =
+  process.env.CRAWL_AUDIT_USER_AGENT ?? "AEO-CrawlAudit/1.0 (+https://aeo.example.com/bot)";
+
 /**
  * Fetches a URL with timeout, size limit, and SSRF guard.
  * Returns null on network error / timeout / non-2xx / size exceeded.
@@ -32,7 +37,7 @@ async function safeFetch(url: string): Promise<string | null> {
       signal: controller.signal,
       redirect: "follow",
       headers: {
-        "User-Agent": "AEO-CrawlAudit/1.0 (+https://aeo.example.com/bot)",
+        "User-Agent": CRAWL_AUDIT_USER_AGENT,
         Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
     });

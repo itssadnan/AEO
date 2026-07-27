@@ -9,7 +9,6 @@ import type {
   EmptyStateConfig,
 } from "./types";
 import type { VisibilitySnapshotRow } from "./database-extensions";
-import type { CrawlAuditRow } from "@/modules/crawl-audit";
 
 // Type assertion helper for tables not yet in generated types
 const supabaseFrom = (
@@ -398,18 +397,14 @@ export async function getReportData(
 // it can be unit tested in a plain Node process. See that file's doc-comment.
 export { mapPlanTier } from "./plan-tier";
 
-export async function getLatestCrawlAudit(brandId: string): Promise<CrawlAuditRow | null> {
-  const supabase = await getSupabase();
-
-  const { data } = await supabaseFrom(supabase, "crawl_audits")
-    .select("*")
-    .eq("brand_id", brandId)
-    .order("checked_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  return data as CrawlAuditRow | null;
-}
+// Re-exported here for the same reason as mapPlanTier above: existing
+// `@/modules/dashboard/queries` imports (reports/page.tsx) keep working
+// unchanged, but the actual query logic lives in a single place
+// (modules/crawl-audit/crawl-audit.ts) instead of being reimplemented here
+// via the `table as any` escape hatch — crawl_audits is already in the
+// generated Database type, so that escape hatch was never justified for
+// this table in the first place.
+export { getLatestCrawlAudit } from "@/modules/crawl-audit";
 
 export async function getEmptyStateConfig(brandId: string | null): Promise<EmptyStateConfig> {
   const supabase = await getSupabase();

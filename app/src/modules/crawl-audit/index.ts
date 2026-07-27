@@ -8,6 +8,7 @@ export {
   getLatestCrawlAudit,
   getOrRunCrawlAudit,
   buildCrawlChecklist,
+  isAuditFresh,
 } from "./crawl-audit";
 export { runCrawlAudit } from "./fetchers";
 export type {

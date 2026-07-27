@@ -1,21 +1,81 @@
 /**
  * Module 5.7: Crawl-Readiness Audit — Unit tests
  *
+ * Rewritten to use node:test + node:assert/strict, matching this project's
+ * actual test runner (see package.json's "test" script: `tsx --test
+ * tests/unit/*.test.ts`, Node's native test runner — NOT vitest). Earlier
+ * versions of this file imported `vi`/`expect` from "vitest", which this
+ * runner cannot execute at all (it throws "Vitest failed to access its
+ * internal state" immediately) — every prior "12/12 tests pass" claim from
+ * any delegate round was never actually true against the real npm test
+ * command, only against a manually-invoked `vitest run` that isn't how this
+ * project runs tests. See progress/modules/5.7-crawl-readiness-audit.md
+ * decisions log for the full story.
+ *
+ * Two consequences of the switch:
+ * - No `vi.mock()`-style import interception is available. The SSRF guard
+ *   (assertPublicHostname) is exercised for REAL here, not mocked — every
+ *   hostname used below either fails before any DNS lookup (invalid URL,
+ *   localhost, a literal private IP) or is "example.com", a real public
+ *   domain that will resolve via a real DNS lookup in any environment with
+ *   normal network access. This makes these light integration tests for the
+ *   SSRF-guard-adjacent cases, not pure unit tests — an intentional
+ *   trade-off given the constraint, not an oversight.
+ * - getOrRunCrawlAudit's 24h-cache *decision* is tested via the extracted
+ *   pure function `isAuditFresh`, not by calling getOrRunCrawlAudit itself
+ *   against a real or mocked Supabase client — this project's unit test
+ *   tier has no Supabase-mocking convention (see tests/integration/*-rls.ts
+ *   for the pattern this project actually uses for real DB behavior, which
+ *   requires a live Supabase project and is skipped otherwise).
+ *
  * Tests the success path and realistic failure paths:
  * - Missing robots.txt
- * - Null brand.website
- * - SSRF attempt against a private IP
- * - Valid audit run
+ * - Invalid URL / SSRF attempts (localhost, private IP)
+ * - buildCrawlChecklist's pass/fail/warning mapping
+ * - isAuditFresh's 24h boundary
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { runCrawlAudit } from "@/modules/crawl-audit/fetchers";
-import { getOrRunCrawlAudit, buildCrawlChecklist } from "@/modules/crawl-audit/crawl-audit";
-import type { CrawlAuditRow } from "@/modules/crawl-audit/types";
-import { assertPublicHostname, SsrfBlockedError } from "@/lib/security/ssrf-guard";
+import { describe, it, beforeEach } from "node:test";
+import assert from "node:assert/strict";
+import { runCrawlAudit } from "../../src/modules/crawl-audit/fetchers.ts";
+import { buildCrawlChecklist, isAuditFresh } from "../../src/modules/crawl-audit/crawl-audit.ts";
+import type { CrawlAuditRow } from "../../src/modules/crawl-audit/types.ts";
+import { SsrfBlockedError } from "../../src/lib/security/ssrf-guard.ts";
 
-// Mock fetch globally - returns Response-like objects
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
+/**
+ * Minimal manual fetch stub — replaces vi.fn().mockResolvedValueOnce chains.
+ *
+ * Keyed by URL path suffix (robots.txt / llms.txt / homepage "/"), not call
+ * order: runCrawlAudit fetches llms.txt and the homepage concurrently via
+ * Promise.all, and since the real (unmocked) SSRF guard does a real DNS
+ * lookup before each fetch, the two concurrent calls' actual fetch()
+ * invocation order isn't guaranteed to match their Promise.all array
+ * order — a positional/FIFO stub can silently hand the homepage's HTML
+ * response to the llms.txt call or vice versa. Matching by URL avoids that
+ * entirely.
+ */
+function createFetchStub(byPath: {
+  robotsTxt: Response | null;
+  llmsTxt: Response | null;
+  homepage: Response | null;
+}) {
+  const calls: string[] = [];
+  const stub = async (url: string | URL | Request) => {
+    const urlStr = String(url);
+    calls.push(urlStr);
+
+    const response = urlStr.endsWith("/robots.txt")
+      ? byPath.robotsTxt
+      : urlStr.endsWith("/llms.txt")
+        ? byPath.llmsTxt
+        : byPath.homepage;
+
+    if (response === null) {
+      throw new Error("simulated network failure");
+    }
+    return response;
+  };
+  return { stub, calls };
+}
 
 function createMockResponse(body: string | null, ok = true): Response {
   return {
@@ -25,42 +85,6 @@ function createMockResponse(body: string | null, ok = true): Response {
     headers: new Headers(),
   } as unknown as Response;
 }
-
-// Mock the SSRF guard for runCrawlAudit tests
-vi.mock("@/lib/security/ssrf-guard", () => ({
-  assertPublicHostname: vi.fn(),
-  SsrfBlockedError: class SsrfBlockedError extends Error {
-    constructor(message: string) {
-      super(message);
-      this.name = "SsrfBlockedError";
-    }
-  },
-}));
-
-// Mock Supabase for getOrRunCrawlAudit's cache-check + persist path. `dbState`
-// is mutated per-test to control what the "latest row" query and the "insert"
-// call return, without a real database.
-const dbState: { latest: CrawlAuditRow | null; inserted: CrawlAuditRow | null } = {
-  latest: null,
-  inserted: null,
-};
-
-vi.mock("@/lib/db", () => ({
-  createSupabaseServerClient: vi.fn(async () => ({
-    from: () => {
-      const chain = {
-        select: () => chain,
-        eq: () => chain,
-        order: () => chain,
-        limit: () => chain,
-        insert: () => chain,
-        maybeSingle: async () => ({ data: dbState.latest, error: null }),
-        single: async () => ({ data: dbState.inserted, error: null }),
-      };
-      return chain;
-    },
-  })),
-}));
 
 function makeAuditRow(overrides: Partial<CrawlAuditRow> = {}): CrawlAuditRow {
   return {
@@ -94,58 +118,51 @@ function makeAuditRow(overrides: Partial<CrawlAuditRow> = {}): CrawlAuditRow {
 }
 
 describe("Crawl-Readiness Audit (Module 5.7)", () => {
+  let originalFetch: typeof globalThis.fetch;
+
   beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(assertPublicHostname).mockResolvedValue(undefined);
-    dbState.latest = null;
-    dbState.inserted = null;
+    originalFetch = globalThis.fetch;
   });
 
   describe("runCrawlAudit", () => {
-    it("should throw on invalid website URL", async () => {
-      await expect(runCrawlAudit("not-a-url")).rejects.toThrow("Invalid website URL");
+    it("throws on invalid website URL (before any fetch or SSRF check)", async () => {
+      await assert.rejects(runCrawlAudit("not-a-url"), /Invalid website URL/);
     });
 
-    it("should throw on SSRF attempt (private IP)", async () => {
-      vi.mocked(assertPublicHostname).mockRejectedValue(
-        new SsrfBlockedError("192.168.1.1", "Hostname resolves to private IP"),
-      );
-
-      await expect(runCrawlAudit("https://192.168.1.1")).rejects.toThrow(SsrfBlockedError);
-      expect(assertPublicHostname).toHaveBeenCalledWith("192.168.1.1");
+    it("throws SsrfBlockedError on a literal private IPv4 (no DNS lookup needed)", async () => {
+      await assert.rejects(runCrawlAudit("https://192.168.1.1"), SsrfBlockedError);
     });
 
-    it("should throw on SSRF attempt (localhost)", async () => {
-      vi.mocked(assertPublicHostname).mockRejectedValue(
-        new SsrfBlockedError("localhost", "Hostname resolves to loopback IP"),
-      );
-
-      await expect(runCrawlAudit("https://localhost")).rejects.toThrow(SsrfBlockedError);
+    it("throws SsrfBlockedError on localhost", async () => {
+      await assert.rejects(runCrawlAudit("https://localhost"), SsrfBlockedError);
     });
 
-    it("should handle missing robots.txt (all bots allowed)", async () => {
-      // Mock fetch: robots.txt returns 404 (null), llms.txt returns 404 (null), homepage returns HTML
-      mockFetch
-        .mockResolvedValueOnce(createMockResponse(null, false)) // robots.txt 404
-        .mockResolvedValueOnce(createMockResponse(null, false)) // llms.txt 404
-        .mockResolvedValueOnce(createMockResponse("<html><body><h1>Test</h1></body></html>")); // homepage
+    it("handles a missing robots.txt as 'all bots allowed', not an error", async () => {
+      const { stub } = createFetchStub({
+        robotsTxt: createMockResponse(null, false),
+        llmsTxt: createMockResponse(null, false),
+        homepage: createMockResponse("<html><body><h1>Test</h1></body></html>"),
+      });
+      globalThis.fetch = stub as typeof globalThis.fetch;
 
       const result = await runCrawlAudit("https://example.com");
 
-      expect(result.domain).toBe("example.com");
-      expect(result.robots_txt_result.bots).toEqual({
+      assert.equal(result.domain, "example.com");
+      assert.deepEqual(result.robots_txt_result.bots, {
         GPTBot: { allowed: true },
         PerplexityBot: { allowed: true },
         ClaudeBot: { allowed: true },
         "Google-Extended": { allowed: true },
         CCBot: { allowed: true },
       });
-      expect(result.llms_txt_present).toBe(false);
-      expect(result.schema_present).toBe(false);
-      expect(result.heading_structure.h1_count).toBe(1);
+      assert.equal(result.llms_txt_present, false);
+      assert.equal(result.schema_present, false);
+      assert.equal(result.heading_structure.h1_count, 1);
+
+      globalThis.fetch = originalFetch;
     });
 
-    it("should parse robots.txt with robots-parser", async () => {
+    it("parses robots.txt with robots-parser, disallowing the specific bot named", async () => {
       const robotsTxt = `
 User-agent: Google-Extended
 Disallow: /
@@ -156,193 +173,185 @@ Disallow: /
 User-agent: *
 Allow: /
 `;
-
-      mockFetch
-        .mockResolvedValueOnce(createMockResponse(robotsTxt)) // robots.txt
-        .mockResolvedValueOnce(createMockResponse(null, false)) // llms.txt 404
-        .mockResolvedValueOnce(createMockResponse("<html><body><h1>Test</h1></body></html>")); // homepage
-
-      const result = await runCrawlAudit("https://example.com");
-
-      expect(result.robots_txt_result.bots["Google-Extended"].allowed).toBe(false);
-      expect(result.robots_txt_result.bots.GPTBot.allowed).toBe(false);
-      expect(result.robots_txt_result.bots.ClaudeBot.allowed).toBe(true);
-      expect(result.robots_txt_result.bots.PerplexityBot.allowed).toBe(true);
-      expect(result.robots_txt_result.bots.CCBot.allowed).toBe(true);
-    });
-
-    it("should detect llms.txt when present", async () => {
-      mockFetch
-        .mockResolvedValueOnce(createMockResponse(null, false)) // robots.txt 404
-        .mockResolvedValueOnce(createMockResponse("LLMS.txt content")) // llms.txt
-        .mockResolvedValueOnce(createMockResponse("<html><body><h1>Test</h1></body></html>")); // homepage
+      const { stub } = createFetchStub({
+        robotsTxt: createMockResponse(robotsTxt),
+        llmsTxt: createMockResponse(null, false),
+        homepage: createMockResponse("<html><body><h1>Test</h1></body></html>"),
+      });
+      globalThis.fetch = stub as typeof globalThis.fetch;
 
       const result = await runCrawlAudit("https://example.com");
 
-      expect(result.llms_txt_present).toBe(true);
+      assert.equal(result.robots_txt_result.bots["Google-Extended"].allowed, false);
+      assert.equal(result.robots_txt_result.bots.GPTBot.allowed, false);
+      assert.equal(result.robots_txt_result.bots.ClaudeBot.allowed, true);
+      assert.equal(result.robots_txt_result.bots.PerplexityBot.allowed, true);
+      assert.equal(result.robots_txt_result.bots.CCBot.allowed, true);
+
+      globalThis.fetch = originalFetch;
     });
 
-    it("should detect Schema.org JSON-LD", async () => {
+    it("detects llms.txt when present", async () => {
+      const { stub } = createFetchStub({
+        robotsTxt: createMockResponse(null, false),
+        llmsTxt: createMockResponse("LLMS.txt content"),
+        homepage: createMockResponse("<html><body><h1>Test</h1></body></html>"),
+      });
+      globalThis.fetch = stub as typeof globalThis.fetch;
+
+      const result = await runCrawlAudit("https://example.com");
+      assert.equal(result.llms_txt_present, true);
+
+      globalThis.fetch = originalFetch;
+    });
+
+    it("detects Schema.org JSON-LD", async () => {
       const html = `
-        <html>
-          <head>
-            <script type="application/ld+json">
-            {"@context": "https://schema.org", "@type": "WebSite", "name": "Test"}
-            </script>
-          </head>
-          <body><h1>Test</h1></body>
-        </html>
+        <html><head>
+          <script type="application/ld+json">
+          {"@context": "https://schema.org", "@type": "WebSite", "name": "Test"}
+          </script>
+        </head><body><h1>Test</h1></body></html>
       `;
-
-      mockFetch
-        .mockResolvedValueOnce(createMockResponse(null, false)) // robots.txt 404
-        .mockResolvedValueOnce(createMockResponse(null, false)) // llms.txt 404
-        .mockResolvedValueOnce(createMockResponse(html)); // homepage
+      const { stub } = createFetchStub({
+        robotsTxt: createMockResponse(null, false),
+        llmsTxt: createMockResponse(null, false),
+        homepage: createMockResponse(html),
+      });
+      globalThis.fetch = stub as typeof globalThis.fetch;
 
       const result = await runCrawlAudit("https://example.com");
+      assert.equal(result.schema_present, true);
 
-      expect(result.schema_present).toBe(true);
+      globalThis.fetch = originalFetch;
     });
 
-    it("should detect Schema.org microdata", async () => {
+    it("detects Schema.org microdata", async () => {
       const html = `
-        <html>
-          <body itemscope itemtype="https://schema.org/WebSite">
-            <h1 itemprop="name">Test</h1>
-          </body>
-        </html>
+        <html><body itemscope itemtype="https://schema.org/WebSite">
+          <h1 itemprop="name">Test</h1>
+        </body></html>
       `;
-
-      mockFetch
-        .mockResolvedValueOnce(createMockResponse(null, false)) // robots.txt 404
-        .mockResolvedValueOnce(createMockResponse(null, false)) // llms.txt 404
-        .mockResolvedValueOnce(createMockResponse(html)); // homepage
+      const { stub } = createFetchStub({
+        robotsTxt: createMockResponse(null, false),
+        llmsTxt: createMockResponse(null, false),
+        homepage: createMockResponse(html),
+      });
+      globalThis.fetch = stub as typeof globalThis.fetch;
 
       const result = await runCrawlAudit("https://example.com");
+      assert.equal(result.schema_present, true);
 
-      expect(result.schema_present).toBe(true);
+      globalThis.fetch = originalFetch;
     });
 
-    it("should count heading structure correctly", async () => {
+    it("counts heading structure correctly", async () => {
       const html = `
-        <html>
-          <body>
-            <h1>H1 #1</h1>
-            <h1>H1 #2</h1>
-            <h2>H2 #1</h2>
-            <h2>H2 #2</h2>
-            <h3>H3 #1</h3>
-            <h4>H4 #1</h4>
-            <h5>H5 #1</h5>
-            <h6>H6 #1</h6>
-          </body>
-        </html>
+        <html><body>
+          <h1>H1 #1</h1><h1>H1 #2</h1>
+          <h2>H2 #1</h2><h2>H2 #2</h2>
+          <h3>H3 #1</h3><h4>H4 #1</h4><h5>H5 #1</h5><h6>H6 #1</h6>
+        </body></html>
       `;
-
-      mockFetch
-        .mockResolvedValueOnce(createMockResponse(null, false)) // robots.txt 404
-        .mockResolvedValueOnce(createMockResponse(null, false)) // llms.txt 404
-        .mockResolvedValueOnce(createMockResponse(html)); // homepage
+      const { stub } = createFetchStub({
+        robotsTxt: createMockResponse(null, false),
+        llmsTxt: createMockResponse(null, false),
+        homepage: createMockResponse(html),
+      });
+      globalThis.fetch = stub as typeof globalThis.fetch;
 
       const result = await runCrawlAudit("https://example.com");
 
-      expect(result.heading_structure.h1_count).toBe(2);
-      expect(result.heading_structure.h2_count).toBe(2);
-      expect(result.heading_structure.h3_count).toBe(1);
-      expect(result.heading_structure.h4_count).toBe(1);
-      expect(result.heading_structure.h5_count).toBe(1);
-      expect(result.heading_structure.h6_count).toBe(1);
-      expect(result.heading_structure.has_multiple_h1).toBe(true);
+      assert.equal(result.heading_structure.h1_count, 2);
+      assert.equal(result.heading_structure.h2_count, 2);
+      assert.equal(result.heading_structure.h3_count, 1);
+      assert.equal(result.heading_structure.h4_count, 1);
+      assert.equal(result.heading_structure.h5_count, 1);
+      assert.equal(result.heading_structure.h6_count, 1);
+      assert.equal(result.heading_structure.has_multiple_h1, true);
+
+      globalThis.fetch = originalFetch;
     });
 
-    it("should call SSRF guard before every outbound fetch", async () => {
-      mockFetch
-        .mockResolvedValueOnce(null) // robots.txt
-        .mockResolvedValueOnce("<html><body><h1>Test</h1></body></html>"); // homepage
+    it("calls fetch exactly 3 times per audit (robots.txt, llms.txt, homepage)", async () => {
+      const { stub, calls } = createFetchStub({
+        robotsTxt: createMockResponse(null, false),
+        llmsTxt: createMockResponse(null, false),
+        homepage: createMockResponse("<html><body><h1>Test</h1></body></html>"),
+      });
+      globalThis.fetch = stub as typeof globalThis.fetch;
 
       await runCrawlAudit("https://example.com");
 
-      // Should be called for: robots.txt, llms.txt, homepage (3 times)
-      expect(assertPublicHostname).toHaveBeenCalledTimes(3);
-      expect(assertPublicHostname).toHaveBeenCalledWith("example.com");
+      assert.equal(calls.length, 3);
+      for (const url of calls) {
+        assert.ok(url.startsWith("https://example.com/"), `unexpected fetch URL: ${url}`);
+      }
+
+      globalThis.fetch = originalFetch;
     });
 
-    it("should handle network timeout gracefully", async () => {
-      mockFetch.mockRejectedValue(new Error("Timeout"));
+    it("handles a network failure on every fetch gracefully (no unhandled rejection)", async () => {
+      const { stub } = createFetchStub({ robotsTxt: null, llmsTxt: null, homepage: null });
+      globalThis.fetch = stub as typeof globalThis.fetch;
 
       const result = await runCrawlAudit("https://example.com");
 
-      // Should return defaults on network failure
-      expect(result.domain).toBe("example.com");
-      expect(result.robots_txt_result.bots.GPTBot.allowed).toBe(true);
-      expect(result.llms_txt_present).toBe(false);
-      expect(result.schema_present).toBe(false);
-      expect(result.heading_structure.h1_count).toBe(0);
+      assert.equal(result.domain, "example.com");
+      assert.equal(result.robots_txt_result.bots.GPTBot.allowed, true);
+      assert.equal(result.llms_txt_present, false);
+      assert.equal(result.schema_present, false);
+      assert.equal(result.heading_structure.h1_count, 0);
+
+      globalThis.fetch = originalFetch;
     });
 
-    it("should handle non-2xx responses gracefully", async () => {
-      mockFetch
-        .mockResolvedValueOnce(null) // robots.txt 404
-        .mockResolvedValueOnce(null); // homepage 404
+    it("handles non-2xx responses gracefully", async () => {
+      const { stub } = createFetchStub({
+        robotsTxt: createMockResponse(null, false),
+        llmsTxt: createMockResponse(null, false),
+        homepage: createMockResponse(null, false),
+      });
+      globalThis.fetch = stub as typeof globalThis.fetch;
 
       const result = await runCrawlAudit("https://example.com");
 
-      expect(result.domain).toBe("example.com");
-      expect(result.robots_txt_result.bots.GPTBot.allowed).toBe(true);
-      expect(result.llms_txt_present).toBe(false);
-      expect(result.schema_present).toBe(false);
-      expect(result.heading_structure.h1_count).toBe(0);
+      assert.equal(result.domain, "example.com");
+      assert.equal(result.robots_txt_result.bots.GPTBot.allowed, true);
+      assert.equal(result.llms_txt_present, false);
+      assert.equal(result.schema_present, false);
+      assert.equal(result.heading_structure.h1_count, 0);
+
+      globalThis.fetch = originalFetch;
     });
   });
 
-  describe("getOrRunCrawlAudit (24h cache)", () => {
-    it("returns the cached row without new fetches when checked_at is under 24h old", async () => {
-      dbState.latest = makeAuditRow({ checked_at: new Date().toISOString() });
-
-      const result = await getOrRunCrawlAudit("brand-1", "https://example.com");
-
-      expect(result).toEqual(dbState.latest);
-      expect(mockFetch).not.toHaveBeenCalled();
+  describe("isAuditFresh (24h cache decision)", () => {
+    it("is fresh when checked less than 24h ago", () => {
+      const now = new Date("2026-07-27T12:00:00.000Z");
+      const checkedAt = new Date("2026-07-27T00:00:01.000Z").toISOString(); // ~12h ago
+      assert.equal(isAuditFresh(checkedAt, now), true);
     });
 
-    it("runs a fresh audit (3 fetches) when the cached row is older than 24h", async () => {
-      const staleDate = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
-      dbState.latest = makeAuditRow({ checked_at: staleDate });
-      dbState.inserted = makeAuditRow({ id: "audit-2", checked_at: new Date().toISOString() });
-
-      mockFetch
-        .mockResolvedValueOnce(createMockResponse(null, false)) // robots.txt 404
-        .mockResolvedValueOnce(createMockResponse(null, false)) // llms.txt 404
-        .mockResolvedValueOnce(createMockResponse("<html><body><h1>Test</h1></body></html>")); // homepage
-
-      const result = await getOrRunCrawlAudit("brand-1", "https://example.com");
-
-      expect(mockFetch).toHaveBeenCalledTimes(3);
-      expect(result.id).toBe("audit-2");
+    it("is stale when checked more than 24h ago", () => {
+      const now = new Date("2026-07-27T12:00:00.000Z");
+      const checkedAt = new Date("2026-07-26T11:00:00.000Z").toISOString(); // 25h ago
+      assert.equal(isAuditFresh(checkedAt, now), false);
     });
 
-    it("runs a fresh audit when there is no prior row at all", async () => {
-      dbState.latest = null;
-      dbState.inserted = makeAuditRow();
-
-      mockFetch
-        .mockResolvedValueOnce(createMockResponse(null, false))
-        .mockResolvedValueOnce(createMockResponse(null, false))
-        .mockResolvedValueOnce(createMockResponse("<html><body><h1>Test</h1></body></html>"));
-
-      await getOrRunCrawlAudit("brand-1", "https://example.com");
-
-      expect(mockFetch).toHaveBeenCalledTimes(3);
+    it("is stale at exactly 24h (boundary is exclusive)", () => {
+      const now = new Date("2026-07-27T12:00:00.000Z");
+      const checkedAt = new Date("2026-07-26T12:00:00.000Z").toISOString(); // exactly 24h ago
+      assert.equal(isAuditFresh(checkedAt, now), false);
     });
   });
 
   describe("buildCrawlChecklist", () => {
     it("marks every item pass for a fully-passing audit", () => {
       const items = buildCrawlChecklist(makeAuditRow());
-
-      expect(items.length).toBeGreaterThan(0);
+      assert.ok(items.length > 0);
       for (const item of items) {
-        expect(item.status).toBe("pass");
+        assert.equal(item.status, "pass", `expected ${item.id} to pass`);
       }
     });
 
@@ -363,18 +372,17 @@ Allow: /
       const gptItem = items.find((i) => i.id === "robots-GPTBot");
       const perplexityItem = items.find((i) => i.id === "robots-PerplexityBot");
 
-      expect(gptItem?.status).toBe("fail");
-      expect(perplexityItem?.status).toBe("pass");
+      assert.equal(gptItem?.status, "fail");
+      assert.equal(perplexityItem?.status, "pass");
     });
 
     it("never marks llms.txt as fail when absent — warning only", () => {
       const audit = makeAuditRow({ llms_txt_present: false });
-
       const items = buildCrawlChecklist(audit);
       const llmsItem = items.find((i) => i.id === "llms-txt");
 
-      expect(llmsItem?.status).toBe("warning");
-      expect(llmsItem?.status).not.toBe("fail");
+      assert.equal(llmsItem?.status, "warning");
+      assert.notEqual(llmsItem?.status, "fail");
     });
 
     it("warns (not fails) on zero or multiple H1 tags", () => {
@@ -405,8 +413,8 @@ Allow: /
         }),
       );
 
-      expect(zeroH1.find((i) => i.id === "heading-structure")?.status).toBe("warning");
-      expect(multipleH1.find((i) => i.id === "heading-structure")?.status).toBe("warning");
+      assert.equal(zeroH1.find((i) => i.id === "heading-structure")?.status, "warning");
+      assert.equal(multipleH1.find((i) => i.id === "heading-structure")?.status, "warning");
     });
   });
 });
