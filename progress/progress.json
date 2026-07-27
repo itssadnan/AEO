@@ -896,7 +896,8 @@
         "0.0"
       ],
       "blocks": [
-        "5.11"
+        "5.11",
+        "5.8"
       ],
       "owner": "unassigned",
       "filesTouched": [],
@@ -920,9 +921,14 @@
       ],
       "cachingNotes": "Cache per-domain audit result with a 24h TTL — a site's robots.txt/schema doesn't change minute to minute, no need to refetch on every dashboard load.",
       "securityNotes": "Identify your own crawler with a clear user-agent string; respect standard fetch etiquette when the target isn't the customer's own domain.",
-      "lastUpdated": null,
+      "lastUpdated": "2026-07-26",
       "lastUpdatedBy": null,
-      "decisionsLog": [],
+      "decisionsLog": [
+        {
+          "date": "2026-07-26",
+          "note": "Implementation spec written (progress/specs/5.7-crawl-readiness-audit.md) per the delegate-and-verify workflow, not yet implemented — status/percentComplete intentionally unchanged, a spec is not an implementation. Spec grounded directly in the spec docx (Section 5.7), the ERD's crawl_audits table, and docs/architecture/system-architecture.md. Findings while scoping: (1) Module 5.6's own spec named 'Reports: crawl-readiness checklist' as an acceptance criterion, but reports-view.tsx has zero reference to crawl_audits anywhere — that acceptance criterion was silently dropped during 5.6's delegation and never flagged. This spec requires 5.7's delegate to close that gap directly (narrow, spec-authorized edits to reports/page.tsx, reports-view.tsx, dashboard/queries.ts) rather than building an isolated module nobody calls. (2) The ERD's crawl_audits table has no column for heading-structure results despite 'heading structure' being an explicit acceptance criterion — spec adds a new heading_structure jsonb column and requires the ERD doc to be updated as part of this module's deliverable. (3) Added blocks: 5.8 here (and dependsOn: 5.7 on 5.8's entry) — 5.8's weekly digest acceptance criteria explicitly includes 'new crawl issues', a real dependency on this module's output that predates this session but was never reflected in either module's tracker entry."
+        }
+      ],
       "blockers": [],
       "detailFile": "progress/modules/5.7-crawl-readiness-audit.md"
     },
@@ -934,7 +940,8 @@
       "status": "not_started",
       "percentComplete": 0,
       "dependsOn": [
-        "5.5"
+        "5.5",
+        "5.7"
       ],
       "blocks": [],
       "owner": "unassigned",
@@ -951,9 +958,14 @@
       ],
       "cachingNotes": "N/A — each digest is generated once per send, inherently non-repeated.",
       "securityNotes": "SPF/DKIM/DMARC configured on the sending domain before the first real send.",
-      "lastUpdated": null,
+      "lastUpdated": "2026-07-26",
       "lastUpdatedBy": null,
-      "decisionsLog": [],
+      "decisionsLog": [
+        {
+          "date": "2026-07-26",
+          "note": "Deliberately NOT spec'd or bundled with 5.7 in this session, despite the user asking to bundle 5.8 in if it turned out smaller/mingleable. Reasoning: (1) dependsOn corrected above to include 5.7 — this module's 'new crawl issues' digest line item is a real dependency on 5.7's output, and 5.7 has not been implemented yet, so speccing 5.8 now would force the delegate to guess at an integration that doesn't exist. (2) Unlike 5.7 (zero new external dependencies — only reads the customer's own public site files), this module requires net-new infrastructure the user hasn't set up yet: a Resend account + API key (no email-sending infrastructure of any kind exists in this codebase today, confirmed by grep), and SPF/DKIM/DMARC DNS records on the sending domain, both prerequisites this module's own securityNotes already calls out as needed 'before the first real send.' Those are real-world setup steps outside code that should happen before a delegate model is asked to build against them. (3) On raw scope, 5.7 turned out non-trivial in its own right (new migration, new table, RLS, a security-sensitive SSRF guard, and closing a real gap in 5.6's Reports view) — so the 'if 5.7 or 5.8 is smaller' condition for bundling didn't hold either. Recommendation: spec 5.8 as its own follow-up once 5.7 ships and once Resend + DNS records are set up."
+        }
+      ],
       "blockers": [],
       "detailFile": "progress/modules/5.8-alerting-and-reporting.md"
     },

@@ -6,6 +6,7 @@ import {
   computeOverviewMetrics,
   getEmptyStateConfig,
   mapPlanTier,
+  getLatestCrawlAudit,
 } from "@/modules/dashboard/queries";
 
 export default async function ReportsPage({
@@ -82,10 +83,11 @@ export default async function ReportsPage({
     );
   }
 
-  const [brandWithRelations, overview, emptyState] = await Promise.all([
+  const [brandWithRelations, overview, emptyState, crawlAudit] = await Promise.all([
     getBrandWithRelations(brandId),
     computeOverviewMetrics(brandId, engine),
     getEmptyStateConfig(brandId),
+    getLatestCrawlAudit(brandId),
   ]);
 
   if (!brandWithRelations) {
@@ -100,6 +102,7 @@ export default async function ReportsPage({
       competitors={brandWithRelations.competitors}
       prompts={brandWithRelations.prompts}
       workspace={{ ...workspace, plan_tier: mapPlanTier(workspace.plan_tier) }}
+      crawlAudit={crawlAudit}
     />
   );
 }

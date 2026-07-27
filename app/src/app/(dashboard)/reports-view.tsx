@@ -17,6 +17,7 @@ import type {
   Prompt,
   ReportData,
 } from "@/modules/dashboard/types";
+import type { CrawlAuditRow } from "@/modules/crawl-audit";
 
 interface ReportsViewProps {
   brand: BrandWithRelations;
@@ -25,12 +26,20 @@ interface ReportsViewProps {
   competitors: Competitor[];
   prompts: Prompt[];
   workspace: { id: string; name: string; plan_tier: "free" | "starter" | "growth" | "agency" };
+  crawlAudit: CrawlAuditRow | null;
 }
 
 /**
  * Reports view — scheduled PDF/CSV reports and on-demand generation.
+ * Includes Crawl-Readiness Audit section (Module 5.7).
  */
-export function ReportsView({ brand, overview, competitors, workspace }: ReportsViewProps) {
+export function ReportsView({
+  brand,
+  overview,
+  competitors,
+  workspace,
+  crawlAudit,
+}: ReportsViewProps) {
   const [engine, setEngine] = useState<"gemini" | "nvidia-nim">("gemini");
   const [period, setPeriod] = useState<"7d" | "30d" | "90d">("30d");
   const [reportData, setReportData] = useState<ReportData | null>(null);

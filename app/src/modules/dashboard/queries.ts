@@ -9,6 +9,7 @@ import type {
   EmptyStateConfig,
 } from "./types";
 import type { VisibilitySnapshotRow } from "./database-extensions";
+import type { CrawlAuditRow } from "@/modules/crawl-audit";
 
 // Type assertion helper for tables not yet in generated types
 const supabaseFrom = (
@@ -396,6 +397,19 @@ export async function getReportData(
 // deliberately isolated from this file's Supabase/Next.js runtime imports so
 // it can be unit tested in a plain Node process. See that file's doc-comment.
 export { mapPlanTier } from "./plan-tier";
+
+export async function getLatestCrawlAudit(brandId: string): Promise<CrawlAuditRow | null> {
+  const supabase = await getSupabase();
+
+  const { data } = await supabaseFrom(supabase, "crawl_audits")
+    .select("*")
+    .eq("brand_id", brandId)
+    .order("checked_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return data as CrawlAuditRow | null;
+}
 
 export async function getEmptyStateConfig(brandId: string | null): Promise<EmptyStateConfig> {
   const supabase = await getSupabase();
