@@ -9,10 +9,10 @@ import type { RobotsTxtResult, HeadingStructureResult } from "./schemas";
 
 /** The five bots the spec requires us to audit in robots.txt. */
 export const AUDITED_BOTS = [
-  "Googlebot",
   "GPTBot",
-  "Claude-Web",
   "PerplexityBot",
+  "ClaudeBot",
+  "Google-Extended",
   "CCBot",
 ] as const;
 

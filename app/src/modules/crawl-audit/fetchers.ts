@@ -7,14 +7,7 @@
 import { assertPublicHostname } from "@/lib/security";
 import type { RobotsTxtResult, HeadingStructureResult } from "./schemas";
 import { robotsTxtResultSchema, headingStructureResultSchema } from "./schemas";
-
-const AUDITED_BOTS = [
-  "Googlebot",
-  "GPTBot",
-  "Claude-Web",
-  "PerplexityBot",
-  "CCBot",
-] as const;
+import { AUDITED_BOTS } from "./types";
 
 const FETCH_TIMEOUT_MS = 8000;
 const MAX_BODY_SIZE = 500_000; // 500 KB cap on response bodies

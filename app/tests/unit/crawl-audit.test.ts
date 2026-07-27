@@ -74,10 +74,10 @@ describe("Crawl-Readiness Audit (Module 5.7)", () => {
 
       expect(result.domain).toBe("example.com");
       expect(result.robots_txt_result.bots).toEqual({
-        Googlebot: { allowed: true },
         GPTBot: { allowed: true },
-        "Claude-Web": { allowed: true },
         PerplexityBot: { allowed: true },
+        ClaudeBot: { allowed: true },
+        "Google-Extended": { allowed: true },
         CCBot: { allowed: true },
       });
       expect(result.llms_txt_present).toBe(false);
@@ -87,7 +87,7 @@ describe("Crawl-Readiness Audit (Module 5.7)", () => {
 
     it("should parse robots.txt with robots-parser", async () => {
       const robotsTxt = `
-User-agent: Googlebot
+User-agent: Google-Extended
 Disallow: /
 
 User-agent: GPTBot
@@ -104,9 +104,9 @@ Allow: /
 
       const result = await runCrawlAudit("https://example.com");
 
-      expect(result.robots_txt_result.bots.Googlebot.allowed).toBe(false);
+      expect(result.robots_txt_result.bots["Google-Extended"].allowed).toBe(false);
       expect(result.robots_txt_result.bots.GPTBot.allowed).toBe(false);
-      expect(result.robots_txt_result.bots["Claude-Web"].allowed).toBe(true);
+      expect(result.robots_txt_result.bots.ClaudeBot.allowed).toBe(true);
       expect(result.robots_txt_result.bots.PerplexityBot.allowed).toBe(true);
       expect(result.robots_txt_result.bots.CCBot.allowed).toBe(true);
     });
@@ -214,7 +214,7 @@ Allow: /
 
       // Should return defaults on network failure
       expect(result.domain).toBe("example.com");
-      expect(result.robots_txt_result.bots.Googlebot.allowed).toBe(true);
+      expect(result.robots_txt_result.bots.GPTBot.allowed).toBe(true);
       expect(result.llms_txt_present).toBe(false);
       expect(result.schema_present).toBe(false);
       expect(result.heading_structure.h1_count).toBe(0);
@@ -228,7 +228,7 @@ Allow: /
       const result = await runCrawlAudit("https://example.com");
 
       expect(result.domain).toBe("example.com");
-      expect(result.robots_txt_result.bots.Googlebot.allowed).toBe(true);
+      expect(result.robots_txt_result.bots.GPTBot.allowed).toBe(true);
       expect(result.llms_txt_present).toBe(false);
       expect(result.schema_present).toBe(false);
       expect(result.heading_structure.h1_count).toBe(0);

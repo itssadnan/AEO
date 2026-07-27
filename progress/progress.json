@@ -890,8 +890,8 @@
       "name": "Crawl-Readiness Audit",
       "phase": "3",
       "specSection": "5.7",
-      "status": "not_started",
-      "percentComplete": 0,
+      "status": "in_progress",
+      "percentComplete": 55,
       "dependsOn": [
         "0.0"
       ],
@@ -900,7 +900,24 @@
         "5.8"
       ],
       "owner": "unassigned",
-      "filesTouched": [],
+      "filesTouched": [
+        "app/supabase/migrations/0018_crawl_readiness_audit.sql",
+        "app/src/lib/security/ssrf-guard.ts",
+        "app/src/lib/security/index.ts",
+        "app/src/modules/crawl-audit/schemas.ts",
+        "app/src/modules/crawl-audit/types.ts",
+        "app/src/modules/crawl-audit/fetchers.ts",
+        "app/src/modules/crawl-audit/crawl-audit.ts",
+        "app/src/modules/crawl-audit/actions.ts",
+        "app/src/modules/crawl-audit/index.ts",
+        "app/src/modules/dashboard/queries.ts",
+        "app/src/app/(dashboard)/reports/page.tsx",
+        "app/src/app/(dashboard)/reports-view.tsx",
+        "app/src/app/(dashboard)/crawl-audit-trigger.tsx",
+        "app/tests/unit/crawl-audit.test.ts",
+        "app/src/types/database.ts",
+        "docs/architecture/entity-relationship-diagram.md"
+      ],
       "acceptanceCriteria": [
         {
           "text": "Fetches and parses robots.txt for GPTBot/PerplexityBot/ClaudeBot/Google-Extended/CCBot rules",
@@ -912,24 +929,32 @@
         },
         {
           "text": "Checks for basic schema.org presence and heading structure",
-          "done": false
+          "done": true
         },
         {
           "text": "Outputs a plain checklist with fix instructions",
           "done": false
         }
       ],
-      "cachingNotes": "Cache per-domain audit result with a 24h TTL — a site's robots.txt/schema doesn't change minute to minute, no need to refetch on every dashboard load.",
-      "securityNotes": "Identify your own crawler with a clear user-agent string; respect standard fetch etiquette when the target isn't the customer's own domain.",
-      "lastUpdated": "2026-07-26",
-      "lastUpdatedBy": null,
+      "cachingNotes": "Cache per-domain audit result with a 24h TTL — a site's robots.txt/schema doesn't change minute to minute, no need to refetch on every dashboard load. NOT IMPLEMENTED as of 2026-07-27 — see decisions log.",
+      "securityNotes": "Identify your own crawler with a clear user-agent string; respect standard fetch etiquette when the target isn't the customer's own domain. SSRF guard implemented and verified called before every outbound fetch — see decisions log.",
+      "lastUpdated": "2026-07-27",
+      "lastUpdatedBy": "claude (delegate-and-verify verification pass)",
       "decisionsLog": [
         {
           "date": "2026-07-26",
           "note": "Implementation spec written (progress/specs/5.7-crawl-readiness-audit.md) per the delegate-and-verify workflow, not yet implemented — status/percentComplete intentionally unchanged, a spec is not an implementation. Spec grounded directly in the spec docx (Section 5.7), the ERD's crawl_audits table, and docs/architecture/system-architecture.md. Findings while scoping: (1) Module 5.6's own spec named 'Reports: crawl-readiness checklist' as an acceptance criterion, but reports-view.tsx has zero reference to crawl_audits anywhere — that acceptance criterion was silently dropped during 5.6's delegation and never flagged. This spec requires 5.7's delegate to close that gap directly (narrow, spec-authorized edits to reports/page.tsx, reports-view.tsx, dashboard/queries.ts) rather than building an isolated module nobody calls. (2) The ERD's crawl_audits table has no column for heading-structure results despite 'heading structure' being an explicit acceptance criterion — spec adds a new heading_structure jsonb column and requires the ERD doc to be updated as part of this module's deliverable. (3) Added blocks: 5.8 here (and dependsOn: 5.7 on 5.8's entry) — 5.8's weekly digest acceptance criteria explicitly includes 'new crawl issues', a real dependency on this module's output that predates this session but was never reflected in either module's tracker entry."
+        },
+        {
+          "date": "2026-07-27",
+          "note": "Delegate (external model) implemented against the spec across two commits (4fc195f, cbd9355 — both local, unpushed) and self-reported all 22 checklist items as verified/passing. Claude independently verified against ground truth per the delegate-and-verify workflow: re-ran `tsc --noEmit` (clean, 0 errors — confirmed for real), attempted `eslint`/`vitest` (blocked by this specific sandbox's corrupted/mismatched native binaries for esbuild/rollup, unrelated to the code — could not get a real vitest run to complete after repairing three separate native-binary issues; this is an environment gap, not a code finding, and should be re-attempted in a clean environment), and did a full manual read of every file against the written spec (progress/specs/5.7-crawl-readiness-audit.md). Confirmed genuinely solid: the migration's RLS exactly matches 0005's pattern (workspace_member select, owner-or-member insert, deliberately no update/delete); the SSRF guard is real and is called before all 3 outbound fetches (verified by reading fetchers.ts, not by trusting the report); robots-parser is genuinely used, not hand-rolled; timeout (8s) and body-size cap (500KB) are real; the ERD update is accurate and consistent with the actual table name. Found several real defects the self-report's 22/22 checklist never mentioned: (1) CRITICAL — the crawl-readiness UI is never rendered. reports-view.tsx accepts a new `crawlAudit` prop and imports its type, but never imports `CrawlAuditTrigger` or renders anything with it — grep confirms `CrawlAuditTrigger` has zero usages anywhere in the app. This is the exact 'a feature that exists in a folder nobody calls is the same as a feature that doesn't exist' failure the spec explicitly told the delegate not to repeat from 5.6, and it recurred anyway. The self-report's item 13 ('reports-view.tsx imports and renders CrawlAuditCard') is false. (2) The audited bot list is wrong: spec explicitly required `[GPTBot, PerplexityBot, ClaudeBot, Google-Extended, CCBot]` verbatim ('do not add or substitute a different bot list'); the actual code (types.ts, fetchers.ts, and the unit tests) uses `[Googlebot, GPTBot, Claude-Web, PerplexityBot, CCBot]` — Google-Extended (which governs Gemini's use of a site, directly relevant to this product) was replaced with plain Googlebot, and ClaudeBot (Anthropic's real current crawler UA) was replaced with the deprecated Claude-Web. types.ts's own comment claims these are 'the five bots the spec requires' while listing the wrong five. Tests bake in and assert the wrong list rather than catching it. (3) No 24h caching was implemented — `runAndPersistCrawlAudit` always runs fresh fetches; there is no `checked_at`-based cache-hit check anywhere, despite this being an explicit acceptance criterion and this file's own `cachingNotes`. (4) No `buildCrawlChecklist` pure function or `CrawlChecklistItem` (pass/fail/warning + fixInstructions) type exists anywhere — the spec's core UI contract. The client component instead inline-renders raw allowed/blocked and present/missing badges, and in particular renders llms.txt-missing in the same 'negative/red' styling as a real failure, which is exactly the 'no overclaiming llms.txt' overclaim the product spec explicitly warned against. Zero unit tests exist for pass/fail/warning classification (the test file only covers the fetcher/orchestration layer). (5) `dashboard/queries.ts` duplicates `getLatestCrawlAudit`'s query logic (a near-identical copy of the function already in crawl-audit.ts) instead of importing and reusing it, and via the `supabaseFrom(..., table as any)` escape hatch meant only for tables not yet in generated types — `crawl_audits` IS in the regenerated types, so this `any`-cast is unjustified here. This is the same 'copy-paste instead of one shared function' anti-pattern the spec explicitly told the delegate not to repeat from 5.6. (6) `.env.example`: the self-report's claim that '.env.example was updated with SUPABASE_SERVICE_ROLE_KEY' is misleading — that entry predates this module (references Module 5.10 in its own comment). The spec-required `CRAWL_AUDIT_USER_AGENT` env var was never added; the user-agent string is hardcoded in fetchers.ts instead of reading from env. (7) Minor: `actions.ts` doesn't add the spec-requested explicit workspace-membership check before calling the audit — not a live vulnerability (RLS on `crawl_audits` still enforces it at the DB layer since the Supabase client used is the session-scoped one, not service-role), but it is a deviation from the spec and means a caller for an unauthorized brandId gets a raw Postgres RLS error string surfaced to the client instead of a clean app-level error. (8) The SSRF guard itself has a narrower gap worth tracking separately, not unique to this delegate's work: no protection against decimal/hex/octal IP-literal obfuscation (e.g. `2130706433` for 127.0.0.1) and no re-check between DNS resolution and the actual fetch (a DNS-rebinding TOCTOU window) — acceptable for this module's current risk profile (checks the customer's own declared domain) but should be hardened before 5.11 (Public Free-Check) reuses this guard against arbitrary public input. Net: solid foundation (schema/RLS/SSRF/robots-parser/timeouts are real and correct), but the module's primary customer-visible deliverable does not exist in the running app yet, and several acceptance criteria are unmet. Status set to in_progress (55%), not done. Do not mark this module done until: the UI is actually wired in and visually confirmed, the bot list is corrected to the spec's literal five names, 24h caching is implemented, and a `buildCrawlChecklist` pure function with real pass/fail/warning unit tests exists."
         }
       ],
-      "blockers": [],
+      "blockers": [
+        "Crawl-readiness UI (CrawlAuditTrigger) is built but not rendered anywhere in reports-view.tsx — the module has no customer-visible surface yet.",
+        "Bot list uses wrong/stale user-agent strings (Googlebot, Claude-Web) instead of the spec-required (Google-Extended, ClaudeBot) — needs correction before this can be considered functionally correct for an AEO/Gemini-grounding product.",
+        "24h per-domain caching (explicit acceptance criterion) is not implemented."
+      ],
       "detailFile": "progress/modules/5.7-crawl-readiness-audit.md"
     },
     {

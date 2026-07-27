@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { CalculationDisclosure } from "@/components/ui/calculation-disclosure";
 import { Button } from "@/components/ui/button";
 import { formatNumber, formatPercent } from "@/lib/utils";
+import { CrawlAuditTrigger } from "./crawl-audit-trigger";
 import type {
   BrandWithRelations,
   OverviewMetrics,
@@ -336,6 +337,15 @@ export function ReportsView({
             }
           />
         )}
+      </Card>
+
+      {/* Crawl Readiness Audit section (Module 5.7) */}
+      <Card className="p-6">
+        <CrawlAuditTrigger
+          brandId={brand.id}
+          websiteUrl={brand.website}
+          initialAudit={crawlAudit}
+        />
       </Card>
 
       {/* Scheduled reports section (placeholder for future) */}
