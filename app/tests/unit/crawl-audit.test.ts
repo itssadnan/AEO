@@ -48,7 +48,7 @@ describe("Crawl-Readiness Audit (Module 5.7)", () => {
 
     it("should throw on SSRF attempt (private IP)", async () => {
       vi.mocked(assertPublicHostname).mockRejectedValue(
-        new SsrfBlockedError("Hostname resolves to private IP"),
+        new SsrfBlockedError("192.168.1.1", "Hostname resolves to private IP"),
       );
 
       await expect(runCrawlAudit("https://192.168.1.1")).rejects.toThrow(SsrfBlockedError);
@@ -57,7 +57,7 @@ describe("Crawl-Readiness Audit (Module 5.7)", () => {
 
     it("should throw on SSRF attempt (localhost)", async () => {
       vi.mocked(assertPublicHostname).mockRejectedValue(
-        new SsrfBlockedError("Hostname resolves to loopback IP"),
+        new SsrfBlockedError("localhost", "Hostname resolves to loopback IP"),
       );
 
       await expect(runCrawlAudit("https://localhost")).rejects.toThrow(SsrfBlockedError);

@@ -4,7 +4,7 @@
  * All outbound fetches go through assertPublicHostname before the request.
  * Uses robots-parser (npm) for robots.txt parsing — no hand-rolled parser.
  */
-import { assertPublicHostname, SsrfBlockedError } from "@/lib/security";
+import { assertPublicHostname } from "@/lib/security";
 import type { RobotsTxtResult, HeadingStructureResult } from "./schemas";
 import { robotsTxtResultSchema, headingStructureResultSchema } from "./schemas";
 
@@ -97,69 +97,6 @@ async function parseRobotsTxt(robotsTxt: string, domain: string): Promise<Robots
   return { bots };
 }
 
-/**
- * Checks for llms.txt at the standard location.
- */
-async function checkLlmsTxt(domain: string): Promise<boolean> {
-  const text = await safeFetch(`https://${domain}/llms.txt`);
-  return text !== null && text.trim().length > 0;
-}
-
-/**
- * Checks for Schema.org structured data (JSON-LD or microdata) in the homepage HTML.
- */
-async function checkSchemaOrg(domain: string): Promise<boolean> {
-  const html = await safeFetch(`https://${domain}/`);
-  if (!html) return false;
-
-  // Look for JSON-LD with @context schema.org
-  const jsonLdRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
-  let match: RegExpExecArray | null;
-  while ((match = jsonLdRegex.exec(html)) !== null) {
-    try {
-      const data = JSON.parse(match[1]);
-      const contexts = Array.isArray(data["@context"]) ? data["@context"] : [data["@context"]];
-      if (contexts.some((c: unknown) => typeof c === "string" && c.includes("schema.org"))) {
-        return true;
-      }
-    } catch {
-      // Ignore malformed JSON-LD
-    }
-  }
-
-  // Look for microdata itemscope with schema.org itemtype
-  const microdataRegex = /itemscope[^>]*itemtype=["'][^"']*schema\.org[^"']*["']/i;
-  if (microdataRegex.test(html)) return true;
-
-  return false;
-}
-
-/**
- * Analyzes heading structure (h1-h6) in the homepage HTML.
- */
-async function analyzeHeadingStructure(html: string): Promise<HeadingStructureResult> {
-  const counts: HeadingStructureResult = {
-    h1_count: 0,
-    h2_count: 0,
-    h3_count: 0,
-    h4_count: 0,
-    h5_count: 0,
-    h6_count: 0,
-    has_multiple_h1: false,
-  };
-
-  // Count h1-h6 tags (case-insensitive, handles attributes)
-  for (let i = 1; i <= 6; i++) {
-    const regex = new RegExp(`<h${i}[^>]*>`, "gi");
-    const matches = html.match(regex);
-    const count = matches ? matches.length : 0;
-    (counts as Record<string, number>)[`h${i}_count`] = count;
-  }
-
-  counts.has_multiple_h1 = counts.h1_count > 1;
-
-  return counts;
-}
 
 /**
  * Runs the full crawl-readiness audit for a given brand website URL.
@@ -247,7 +184,10 @@ export async function runCrawlAudit(websiteUrl: string): Promise<{
       const regex = new RegExp(`<h${i}[^>]*>`, "gi");
       const matches = homepageHtml.match(regex);
       const count = matches ? matches.length : 0;
-      counts[`h${i}_count` as keyof typeof counts] = count;
+      const key = `h${i}_count` as keyof HeadingStructureResult;
+      if (key !== "has_multiple_h1") {
+        (counts as unknown as Record<string, number>)[key] = count;
+      }
     }
 
     counts.has_multiple_h1 = counts.h1_count > 1;

@@ -7,7 +7,7 @@
  */
 import { createSupabaseServerClient } from "@/lib/db";
 import { runCrawlAudit } from "./fetchers";
-import type { CrawlAuditRow, AuditActionState } from "./types";
+import type { CrawlAuditRow } from "./types";
 
 /**
  * Runs a crawl-readiness audit for a brand and persists the result.
