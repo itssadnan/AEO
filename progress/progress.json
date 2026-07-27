@@ -558,9 +558,16 @@
         {
           "date": "2026-07-25",
           "text": "User set ENGINE_WORKER_SECRET and GEMINI_API_KEY_PRIMARY as Edge Function secrets. Live smoke test (throwaway workspace/brand/prompt/check_job) found and fixed 2 more real bugs: (11) engine-worker's rpc() helper unconditionally called response.json(), but PostgREST returns 204 No Content for the returns void functions (retry_or_fail_check_job, complete_check_job) — parsing the empty body threw inside the per-job catch, escaping it and turning an already-handled failure into an unhandled 500 for the whole invocation even though the DB write itself succeeded; (12) the seeded grounded_search model (gemini-2.5-flash-lite) is dead — Google deprecated the 2.5 family ahead of schedule, confirmed via a real 404 through this exact worker — updated to gemini-3.5-flash-lite (current GA model, same generateContent endpoint) via migration 0012. Both fixes verified live against the real Gemini API: the worker now reaches Gemini for real and correctly handles a genuine 429 rate-limit response (not mocked) through the full retry/backoff path. A fully successful check_runs row is expected on the next pg_cron tick once quota recovers from this session's own test traffic; not yet manually re-confirmed. percentComplete moved 95 -> 98."
+        },
+        {
+          "date": "2026-07-27",
+          "text": "Identified a real circular dependency while deciding what to work on after 5.7: this module's one remaining unmet acceptance criterion ('Admin Console (5.10) surfaces which failoverMode is active per provider...') requires 5.10 to exist, but 5.10's own dependsOn lists 5.3 — neither module can reach 100% first under the tracker's rules as written. Also still open: the previous entry's 'not yet manually re-confirmed' live pg_cron/check_runs verification. User chose to break the loop by building 5.10 first (it only needs data already in the DB — ai_task_configs, key-pool health columns — not anything else 5.3 has left to do), then come back to flip this module's last criterion to done and re-confirm the pending live check. Status remains in_progress/98% until both are closed."
         }
       ],
-      "blockers": [],
+      "blockers": [
+        "Cannot reach 100% until Module 5.10 (Admin/Ops Console) exists, since this module's last acceptance criterion is 'Admin Console surfaces failoverMode' — a real dependency on 5.10, which itself depends on 5.3. User decided 2026-07-27 to build 5.10 first to break the loop, then return here.",
+        "The live pg_cron/check_runs verification from the 2026-07-25 session was expected to succeed but not yet manually re-confirmed — should be checked for real once this module is picked back up."
+      ],
       "detailFile": "progress/modules/5.3-engine-query-engine.md"
     },
     {
@@ -1012,6 +1019,10 @@
         {
           "date": "2026-07-26",
           "note": "Deliberately NOT spec'd or bundled with 5.7 in this session, despite the user asking to bundle 5.8 in if it turned out smaller/mingleable. Reasoning: (1) dependsOn corrected above to include 5.7 — this module's 'new crawl issues' digest line item is a real dependency on 5.7's output, and 5.7 has not been implemented yet, so speccing 5.8 now would force the delegate to guess at an integration that doesn't exist. (2) Unlike 5.7 (zero new external dependencies — only reads the customer's own public site files), this module requires net-new infrastructure the user hasn't set up yet: a Resend account + API key (no email-sending infrastructure of any kind exists in this codebase today, confirmed by grep), and SPF/DKIM/DMARC DNS records on the sending domain, both prerequisites this module's own securityNotes already calls out as needed 'before the first real send.' Those are real-world setup steps outside code that should happen before a delegate model is asked to build against them. (3) On raw scope, 5.7 turned out non-trivial in its own right (new migration, new table, RLS, a security-sensitive SSRF guard, and closing a real gap in 5.6's Reports view) — so the 'if 5.7 or 5.8 is smaller' condition for bundling didn't hold either. Recommendation: spec 5.8 as its own follow-up once 5.7 ships and once Resend + DNS records are set up."
+        },
+        {
+          "date": "2026-07-27",
+          "note": "Now that 5.7 is done, dependsOn is fully satisfied — but Resend account + SPF/DKIM/DMARC DNS records still don't exist (asked the user directly; confirmed still not set up). Since this module blocks nothing else (blocks: []), deferring it costs nothing downstream. User agreed to defer and work on 5.10 (Admin/Ops Console) instead, which surfaced a separate real issue: it and 5.3 have a circular dependency (5.3's last unmet acceptance criterion requires 5.10 to exist; 5.10's dependsOn lists 5.3). User chose to build 5.10 first, then close out 5.3 — see both modules' decisions logs. 5.8 remains not_started, no change to its own scope; revisit once Resend + DNS are ready."
         }
       ],
       "blockers": [],
@@ -1135,6 +1146,14 @@
         {
           "date": "2026-07-23",
           "text": "Scope further expanded to surface the multi-key failover pool (5.3) — per-key health + immediate alert on a key dying. Required condition of accepting the key-pool risk, not optional."
+        },
+        {
+          "date": "2026-07-27",
+          "text": "Circular dependency identified with 5.3: this module's dependsOn lists 5.3, but 5.3's own last unmet acceptance criterion requires this module to exist (Admin Console surfacing failoverMode). User chose to build this module first regardless — everything this module's acceptance criteria actually need already exists in the DB from 5.3's prior work (ai_task_configs table, key-pool health/dead-key columns, check error logs) even though 5.3 itself isn't formally 100% yet. Treating dependsOn: [5.3] as 'the data this module reads must exist,' which it does, not as 'module 5.3's tracker status must say done' — the latter reading is what created the deadlock. Once this module ships, return to 5.3 and flip its last criterion."
+        },
+        {
+          "date": "2026-07-27",
+          "text": "Implementation spec written (progress/specs/5.10-admin-ops-console.md) per the delegate-and-verify workflow — not yet implemented, status/percentComplete intentionally unchanged (a spec is not an implementation, same rule as 5.7's spec-writing entry). Verified live against the real database before writing it (list_tables, execute_sql), not assumed: ai_task_configs (5 rows), ai_provider_key_health (6 rows), ai_provider_settings (2 rows, real failover_mode column), engine_error_logs (268 rows) all exist with RLS enabled and zero policies (correct, intentional — matches docs/CONVENTIONS.md Section 5's documented 'admin-only, service-role-only' exception, not a gap). Also confirmed auth.users has last_sign_in_at (churn signal source, no new column needed) and the exact live signatures of complete_check_job/retry_or_fail_check_job (needed for the migration's revoke/grant statements to target the right overload, per the 0011 lesson about stale duplicate overloads). Key real finding while scoping: no table anywhere records which key slot (primary/secondary/tertiary) handled a successful or ordinary-retried request — only a dead-key (401/403) event does. The acceptance criterion's literal wording ('quota consumption... broken down per key') can't be met without this. Presented the tradeoff to the user directly (add the schema+worker change vs. descope to per-provider-only) rather than deciding unilaterally, since it means touching Module 5.3's engine-worker — already the most bug-prone module in this project. User chose to add it. Spec adds a nullable check_runs.key_slot column, a new onAttempt observation hook to withKeyFailover (both the Next.js and Deno copies, kept identical per existing convention), and threads the slot through complete_check_job/retry_or_fail_check_job without touching AiProviderError or any existing failover decision logic. Also designed: admin gating via a server-only ADMIN_USER_EMAILS allowlist (no admin-role DB column/migration — none exists today, and a two-person team doesn't need one), and an optional ADMIN_ALERT_WEBHOOK_URL for the 'immediate alert on dead key' criterion, since Module 5.8's real alerting infra doesn't exist yet and this module's own criterion shouldn't wait on it."
         }
       ],
       "blockers": [],
