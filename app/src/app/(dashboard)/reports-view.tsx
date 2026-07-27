@@ -339,14 +339,14 @@ export function ReportsView({
         )}
       </Card>
 
-      {/* Crawl Readiness Audit section (Module 5.7) */}
-      <Card className="p-6">
-        <CrawlAuditTrigger
-          brandId={brand.id}
-          websiteUrl={brand.website}
-          initialAudit={crawlAudit}
-        />
-      </Card>
+      {/* Crawl Readiness Audit section (Module 5.7) — CrawlAuditTrigger
+          renders its own root Card, so no wrapping Card here (avoids a
+          double-nested card). */}
+      <CrawlAuditTrigger
+        brandId={brand.id}
+        websiteUrl={brand.website}
+        initialAudit={crawlAudit}
+      />
 
       {/* Scheduled reports section (placeholder for future) */}
       <Card className="p-6">

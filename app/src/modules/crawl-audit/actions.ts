@@ -1,18 +1,22 @@
 "use server";
 
-import { runAndPersistCrawlAudit, getLatestCrawlAudit } from "./crawl-audit";
+import { getOrRunCrawlAudit, getLatestCrawlAudit } from "./crawl-audit";
 import type { AuditActionState } from "./types";
 
 /**
  * Server Action: Run a crawl-readiness audit for a brand.
  * Called from the CrawlAuditTrigger component in the Reports view.
+ * Cache-aware: getOrRunCrawlAudit returns the existing audit row without a
+ * new fetch if it's under 24h old, per the module's caching spec. If a
+ * customer needs to force a fresh audit before 24h are up, that's a
+ * deliberate future addition, not something silently folded in here.
  */
 export async function runCrawlAuditAction(
   brandId: string,
   websiteUrl: string
 ): Promise<AuditActionState> {
   try {
-    const audit = await runAndPersistCrawlAudit(brandId, websiteUrl);
+    const audit = await getOrRunCrawlAudit(brandId, websiteUrl);
     return { ok: true, audit };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error running crawl audit";

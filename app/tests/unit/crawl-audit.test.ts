@@ -9,6 +9,8 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { runCrawlAudit } from "@/modules/crawl-audit/fetchers";
+import { getOrRunCrawlAudit, buildCrawlChecklist } from "@/modules/crawl-audit/crawl-audit";
+import type { CrawlAuditRow } from "@/modules/crawl-audit/types";
 import { assertPublicHostname, SsrfBlockedError } from "@/lib/security/ssrf-guard";
 
 // Mock fetch globally - returns Response-like objects
@@ -35,10 +37,68 @@ vi.mock("@/lib/security/ssrf-guard", () => ({
   },
 }));
 
+// Mock Supabase for getOrRunCrawlAudit's cache-check + persist path. `dbState`
+// is mutated per-test to control what the "latest row" query and the "insert"
+// call return, without a real database.
+const dbState: { latest: CrawlAuditRow | null; inserted: CrawlAuditRow | null } = {
+  latest: null,
+  inserted: null,
+};
+
+vi.mock("@/lib/db", () => ({
+  createSupabaseServerClient: vi.fn(async () => ({
+    from: () => {
+      const chain = {
+        select: () => chain,
+        eq: () => chain,
+        order: () => chain,
+        limit: () => chain,
+        insert: () => chain,
+        maybeSingle: async () => ({ data: dbState.latest, error: null }),
+        single: async () => ({ data: dbState.inserted, error: null }),
+      };
+      return chain;
+    },
+  })),
+}));
+
+function makeAuditRow(overrides: Partial<CrawlAuditRow> = {}): CrawlAuditRow {
+  return {
+    id: "audit-1",
+    brand_id: "brand-1",
+    domain: "example.com",
+    robots_txt_result: {
+      bots: {
+        GPTBot: { allowed: true },
+        PerplexityBot: { allowed: true },
+        ClaudeBot: { allowed: true },
+        "Google-Extended": { allowed: true },
+        CCBot: { allowed: true },
+      },
+    },
+    llms_txt_present: true,
+    schema_present: true,
+    heading_structure: {
+      h1_count: 1,
+      h2_count: 2,
+      h3_count: 0,
+      h4_count: 0,
+      h5_count: 0,
+      h6_count: 0,
+      has_multiple_h1: false,
+    },
+    checked_at: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
 describe("Crawl-Readiness Audit (Module 5.7)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(assertPublicHostname).mockResolvedValue(undefined);
+    dbState.latest = null;
+    dbState.inserted = null;
   });
 
   describe("runCrawlAudit", () => {
@@ -235,4 +295,118 @@ Allow: /
     });
   });
 
+  describe("getOrRunCrawlAudit (24h cache)", () => {
+    it("returns the cached row without new fetches when checked_at is under 24h old", async () => {
+      dbState.latest = makeAuditRow({ checked_at: new Date().toISOString() });
+
+      const result = await getOrRunCrawlAudit("brand-1", "https://example.com");
+
+      expect(result).toEqual(dbState.latest);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("runs a fresh audit (3 fetches) when the cached row is older than 24h", async () => {
+      const staleDate = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+      dbState.latest = makeAuditRow({ checked_at: staleDate });
+      dbState.inserted = makeAuditRow({ id: "audit-2", checked_at: new Date().toISOString() });
+
+      mockFetch
+        .mockResolvedValueOnce(createMockResponse(null, false)) // robots.txt 404
+        .mockResolvedValueOnce(createMockResponse(null, false)) // llms.txt 404
+        .mockResolvedValueOnce(createMockResponse("<html><body><h1>Test</h1></body></html>")); // homepage
+
+      const result = await getOrRunCrawlAudit("brand-1", "https://example.com");
+
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+      expect(result.id).toBe("audit-2");
+    });
+
+    it("runs a fresh audit when there is no prior row at all", async () => {
+      dbState.latest = null;
+      dbState.inserted = makeAuditRow();
+
+      mockFetch
+        .mockResolvedValueOnce(createMockResponse(null, false))
+        .mockResolvedValueOnce(createMockResponse(null, false))
+        .mockResolvedValueOnce(createMockResponse("<html><body><h1>Test</h1></body></html>"));
+
+      await getOrRunCrawlAudit("brand-1", "https://example.com");
+
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe("buildCrawlChecklist", () => {
+    it("marks every item pass for a fully-passing audit", () => {
+      const items = buildCrawlChecklist(makeAuditRow());
+
+      expect(items.length).toBeGreaterThan(0);
+      for (const item of items) {
+        expect(item.status).toBe("pass");
+      }
+    });
+
+    it("fails only the specific bot that robots.txt blocks", () => {
+      const audit = makeAuditRow({
+        robots_txt_result: {
+          bots: {
+            GPTBot: { allowed: false },
+            PerplexityBot: { allowed: true },
+            ClaudeBot: { allowed: true },
+            "Google-Extended": { allowed: true },
+            CCBot: { allowed: true },
+          },
+        },
+      });
+
+      const items = buildCrawlChecklist(audit);
+      const gptItem = items.find((i) => i.id === "robots-GPTBot");
+      const perplexityItem = items.find((i) => i.id === "robots-PerplexityBot");
+
+      expect(gptItem?.status).toBe("fail");
+      expect(perplexityItem?.status).toBe("pass");
+    });
+
+    it("never marks llms.txt as fail when absent — warning only", () => {
+      const audit = makeAuditRow({ llms_txt_present: false });
+
+      const items = buildCrawlChecklist(audit);
+      const llmsItem = items.find((i) => i.id === "llms-txt");
+
+      expect(llmsItem?.status).toBe("warning");
+      expect(llmsItem?.status).not.toBe("fail");
+    });
+
+    it("warns (not fails) on zero or multiple H1 tags", () => {
+      const zeroH1 = buildCrawlChecklist(
+        makeAuditRow({
+          heading_structure: {
+            h1_count: 0,
+            h2_count: 1,
+            h3_count: 0,
+            h4_count: 0,
+            h5_count: 0,
+            h6_count: 0,
+            has_multiple_h1: false,
+          },
+        }),
+      );
+      const multipleH1 = buildCrawlChecklist(
+        makeAuditRow({
+          heading_structure: {
+            h1_count: 2,
+            h2_count: 1,
+            h3_count: 0,
+            h4_count: 0,
+            h5_count: 0,
+            h6_count: 0,
+            has_multiple_h1: true,
+          },
+        }),
+      );
+
+      expect(zeroH1.find((i) => i.id === "heading-structure")?.status).toBe("warning");
+      expect(multipleH1.find((i) => i.id === "heading-structure")?.status).toBe("warning");
+    });
+  });
 });

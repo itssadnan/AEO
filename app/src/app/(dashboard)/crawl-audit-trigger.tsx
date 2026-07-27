@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { runCrawlAuditAction, getLatestCrawlAuditAction } from "@/modules/crawl-audit/actions";
-import type { CrawlAuditRow } from "@/modules/crawl-audit";
+import { buildCrawlChecklist } from "@/modules/crawl-audit";
+import type { CrawlAuditRow, CrawlChecklistItem } from "@/modules/crawl-audit";
 
 interface CrawlAuditTriggerProps {
   brandId: string;
@@ -60,49 +61,40 @@ export function CrawlAuditTrigger({ brandId, websiteUrl, initialAudit }: CrawlAu
 
   const formatDate = (iso: string) => new Date(iso).toLocaleString();
 
-  const renderBotStatus = (bots: Record<string, { allowed: boolean }>) => (
-    <div className="space-y-2">
-      {Object.entries(bots).map(([bot, { allowed }]) => (
-        <div key={bot} className="flex items-center justify-between text-sm">
-          <span className="text-[var(--color-text-secondary)]">{bot}</span>
+  // Status → color mapping. "warning" deliberately has no filled background
+  // (unlike pass/fail) since --color-warning-muted isn't defined in
+  // globals.css — this avoids relying on an undefined token.
+  const statusStyles: Record<CrawlChecklistItem["status"], string> = {
+    pass: "bg-[var(--color-positive-muted)] text-[var(--color-positive)]",
+    fail: "bg-[var(--color-negative-muted)] text-[var(--color-negative)]",
+    warning: "text-[var(--color-warning)]",
+  };
+
+  const statusLabel: Record<CrawlChecklistItem["status"], string> = {
+    pass: "Pass",
+    fail: "Fail",
+    warning: "Warning",
+  };
+
+  const renderChecklist = (items: CrawlChecklistItem[]) => (
+    <div className="space-y-3">
+      {items.map((item) => (
+        <div key={item.id} className="flex items-start justify-between gap-3 text-sm">
+          <div>
+            <p className="text-[var(--color-text-primary)]">{item.label}</p>
+            {item.fixInstructions && (
+              <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
+                {item.fixInstructions}
+              </p>
+            )}
+          </div>
           <span
-            className={`font-mono text-xs px-2 py-0.5 rounded ${
-              allowed ? "bg-[var(--color-positive-muted)] text-[var(--color-positive)]" : "bg-[var(--color-negative-muted)] text-[var(--color-negative)]"
-            }`}
+            className={`font-mono text-xs px-2 py-0.5 rounded whitespace-nowrap ${statusStyles[item.status]}`}
           >
-            {allowed ? "Allowed" : "Blocked"}
+            {statusLabel[item.status]}
           </span>
         </div>
       ))}
-    </div>
-  );
-
-  const renderHeadingCounts = (headings: CrawlAuditRow["heading_structure"]) => (
-    <div className="grid grid-cols-3 gap-2 text-sm">
-      <div className="text-center p-2 bg-[var(--color-surface-1)] rounded">
-        <div className="font-mono text-lg">{headings.h1_count}</div>
-        <div className="text-[var(--color-text-tertiary)]">H1</div>
-      </div>
-      <div className="text-center p-2 bg-[var(--color-surface-1)] rounded">
-        <div className="font-mono text-lg">{headings.h2_count}</div>
-        <div className="text-[var(--color-text-tertiary)]">H2</div>
-      </div>
-      <div className="text-center p-2 bg-[var(--color-surface-1)] rounded">
-        <div className="font-mono text-lg">{headings.h3_count}</div>
-        <div className="text-[var(--color-text-tertiary)]">H3</div>
-      </div>
-      <div className="text-center p-2 bg-[var(--color-surface-1)] rounded">
-        <div className="font-mono text-lg">{headings.h4_count}</div>
-        <div className="text-[var(--color-text-tertiary)]">H4</div>
-      </div>
-      <div className="text-center p-2 bg-[var(--color-surface-1)] rounded">
-        <div className="font-mono text-lg">{headings.h5_count}</div>
-        <div className="text-[var(--color-text-tertiary)]">H5</div>
-      </div>
-      <div className="text-center p-2 bg-[var(--color-surface-1)] rounded">
-        <div className="font-mono text-lg">{headings.h6_count}</div>
-        <div className="text-[var(--color-text-tertiary)]">H6</div>
-      </div>
     </div>
   );
 
@@ -165,64 +157,10 @@ export function CrawlAuditTrigger({ brandId, websiteUrl, initialAudit }: CrawlAu
             </div>
           </div>
 
-          {/* robots.txt */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-medium text-[var(--color-text-primary)]">robots.txt</h4>
-            {renderBotStatus(audit.robots_txt_result.bots)}
-          </div>
-
-          {/* llms.txt */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-medium text-[var(--color-text-primary)]">llms.txt</h4>
-            <div className="flex items-center gap-3">
-              <span
-                className={`font-mono text-xs px-2 py-0.5 rounded ${
-                  audit.llms_txt_present
-                    ? "bg-[var(--color-positive-muted)] text-[var(--color-positive)]"
-                    : "bg-[var(--color-negative-muted)] text-[var(--color-negative)]"
-                }`}
-              >
-                {audit.llms_txt_present ? "Present" : "Missing"}
-              </span>
-              <span className="text-sm text-[var(--color-text-secondary)]">
-                {audit.llms_txt_present
-                  ? "Found at /llms.txt"
-                  : "Add an llms.txt file to help AI crawlers understand your content"}
-              </span>
-            </div>
-          </div>
-
-          {/* Schema.org */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-medium text-[var(--color-text-primary)]">Schema.org Structured Data</h4>
-            <div className="flex items-center gap-3">
-              <span
-                className={`font-mono text-xs px-2 py-0.5 rounded ${
-                  audit.schema_present
-                    ? "bg-[var(--color-positive-muted)] text-[var(--color-positive)]"
-                    : "bg-[var(--color-negative-muted)] text-[var(--color-negative)]"
-                }`}
-              >
-                {audit.schema_present ? "Detected" : "Not detected"}
-              </span>
-              <span className="text-sm text-[var(--color-text-secondary)]">
-                {audit.schema_present
-                  ? "JSON-LD or microdata with schema.org vocabulary found"
-                  : "Add structured data (JSON-LD recommended) to help AI understand your content"}
-              </span>
-            </div>
-          </div>
-
-          {/* Heading structure */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-medium text-[var(--color-text-primary)]">Heading Structure (H1–H6)</h4>
-            {renderHeadingCounts(audit.heading_structure)}
-            {audit.heading_structure.has_multiple_h1 && (
-              <p className="text-xs text-[var(--color-warning)]">
-                ⚠ Multiple H1 tags detected — consider using only one H1 per page for better accessibility and SEO.
-              </p>
-            )}
-          </div>
+          {/* Checklist built from the stored audit via the shared buildCrawlChecklist
+              pure function (pass/fail/warning + fix instructions) — the single
+              source of truth for this mapping, not reimplemented inline here. */}
+          {renderChecklist(buildCrawlChecklist(audit))}
         </div>
       ) : (
         <EmptyState
