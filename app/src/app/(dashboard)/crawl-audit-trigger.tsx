@@ -5,8 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { runCrawlAuditAction, getLatestCrawlAuditAction } from "@/modules/crawl-audit/actions";
-import { buildCrawlChecklist } from "@/modules/crawl-audit";
-import type { CrawlAuditRow, CrawlChecklistItem } from "@/modules/crawl-audit";
+// buildCrawlChecklist and its types are imported directly from their
+// pure, dependency-free source files, NOT the @/modules/crawl-audit
+// barrel. index.ts also re-exports @/lib/db-touching functions
+// (getOrRunCrawlAudit etc.); Turbopack's Client Component boundary check
+// runs on the barrel's static import graph, so importing anything from
+// the barrel here would drag next/headers/server-only into this client
+// bundle and fail the production build — confirmed against real Vercel
+// build logs. See docs/CONVENTIONS.md "Exception — Client Components
+// and barrel files" and progress/modules/5.7-crawl-readiness-audit.md.
+import { buildCrawlChecklist } from "@/modules/crawl-audit/checklist";
+import type { CrawlAuditRow, CrawlChecklistItem } from "@/modules/crawl-audit/types";
 
 interface CrawlAuditTriggerProps {
   brandId: string;

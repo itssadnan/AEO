@@ -1,7 +1,12 @@
 // Module 5.7 Crawl-Readiness Audit
 // See progress/modules/*.md for acceptance criteria, decisions log, caching/security notes.
 // Per docs/CONVENTIONS.md: nothing outside this folder may import from inside it directly,
-// only through this index.ts.
+// only through this index.ts — with one documented exception: crawl-audit-trigger.tsx
+// ("use client") imports buildCrawlChecklist and its types directly from ./checklist and
+// ./types, not this barrel, because this barrel also re-exports @/lib/db-touching functions
+// (getOrRunCrawlAudit etc.) and Turbopack's Client Component boundary check runs on the
+// barrel's static import graph, not which export is actually used — see CONVENTIONS.md
+// "Exception — Client Components and barrel files".
 
 export {
   runAndPersistCrawlAudit,
