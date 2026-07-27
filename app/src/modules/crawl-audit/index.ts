@@ -7,9 +7,14 @@ export {
   runAndPersistCrawlAudit,
   getLatestCrawlAudit,
   getOrRunCrawlAudit,
-  buildCrawlChecklist,
   isAuditFresh,
 } from "./crawl-audit";
+// buildCrawlChecklist is deliberately re-exported from its own file
+// (checklist.ts), not crawl-audit.ts — see checklist.ts's header comment.
+// It has to stay import-free of "@/lib/db" so client components can
+// import it through this barrel without pulling next/headers/server-only
+// into the browser bundle.
+export { buildCrawlChecklist } from "./checklist";
 export { runCrawlAudit } from "./fetchers";
 export type {
   CrawlAuditRow,

@@ -37,7 +37,8 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { runCrawlAudit } from "../../src/modules/crawl-audit/fetchers.ts";
-import { buildCrawlChecklist, isAuditFresh } from "../../src/modules/crawl-audit/crawl-audit.ts";
+import { isAuditFresh } from "../../src/modules/crawl-audit/crawl-audit.ts";
+import { buildCrawlChecklist } from "../../src/modules/crawl-audit/checklist.ts";
 import type { CrawlAuditRow } from "../../src/modules/crawl-audit/types.ts";
 import { SsrfBlockedError } from "../../src/lib/security/ssrf-guard.ts";
 
