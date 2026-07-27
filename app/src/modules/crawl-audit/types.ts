@@ -35,3 +35,11 @@ export interface CrawlAuditRow {
 export type AuditActionState =
   | { ok: true; audit: CrawlAuditRow }
   | { error: string };
+
+/** Checklist item type for UI rendering. */
+export interface CrawlChecklistItem {
+  id: string;
+  label: string;
+  status: "pass" | "fail" | "warning";
+  fixInstructions?: string;
+}
