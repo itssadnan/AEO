@@ -312,6 +312,7 @@ export type Database = {
           error_code: string | null
           grounding_metadata: Json
           id: string
+          key_slot: string | null
           model: string
           prompt_id: string
           provider: string
@@ -327,6 +328,7 @@ export type Database = {
           error_code?: string | null
           grounding_metadata?: Json
           id?: string
+          key_slot?: string | null
           model: string
           prompt_id: string
           provider: string
@@ -342,6 +344,7 @@ export type Database = {
           error_code?: string | null
           grounding_metadata?: Json
           id?: string
+          key_slot?: string | null
           model?: string
           prompt_id?: string
           provider?: string
@@ -688,6 +691,7 @@ export type Database = {
           name: string
           plan_tier: string
           razorpay_customer_id: string | null
+          updated_at: string
         }
         Insert: {
           created_at?: string
@@ -696,6 +700,7 @@ export type Database = {
           name: string
           plan_tier?: string
           razorpay_customer_id?: string | null
+          updated_at?: string
         }
         Update: {
           created_at?: string
@@ -704,6 +709,7 @@ export type Database = {
           name?: string
           plan_tier?: string
           razorpay_customer_id?: string | null
+          updated_at?: string
         }
         Relationships: []
       }

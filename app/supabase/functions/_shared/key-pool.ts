@@ -75,11 +75,14 @@ export async function withKeyFailover<T>(options: {
   knownDeadSlots?: ReadonlySet<KeySlot>;
   run: (key: string, slot: KeySlot) => Promise<T>;
   onKeyDead?: (provider: ProviderName, slot: KeySlot, code: string) => Promise<void>;
+  /** Called synchronously at the start of each candidate attempt, before calling options.run. */
+  onAttempt?: (slot: KeySlot) => void;
 }): Promise<T> {
   const keys = candidates(options.provider, options.knownDeadSlots);
   if (!keys.length) throw new AiProviderError("not_configured");
   let lastError: AiProviderError | undefined;
   for (const candidate of keys) {
+    options.onAttempt?.(candidate.slot);
     try {
       return await options.run(candidate.key, candidate.slot);
     } catch (error) {

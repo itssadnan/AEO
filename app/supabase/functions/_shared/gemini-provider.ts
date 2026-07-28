@@ -28,6 +28,7 @@ export async function runGeminiGroundedPrompt(options: {
   failoverMode: FailoverMode;
   knownDeadSlots?: ReadonlySet<KeySlot>;
   onKeyDead?: (provider: ProviderName, slot: KeySlot, code: string) => Promise<void>;
+  onAttempt?: (slot: KeySlot) => void;
   fetchImpl?: typeof fetch;
 }): Promise<GroundedResponse> {
   const fetchImpl = options.fetchImpl ?? fetch;
@@ -36,6 +37,7 @@ export async function runGeminiGroundedPrompt(options: {
     mode: options.failoverMode,
     knownDeadSlots: options.knownDeadSlots,
     onKeyDead: options.onKeyDead,
+    onAttempt: options.onAttempt,
     run: async (key, slot) => {
       // Acquire rate limit token before making the request. Keyed to the
       // specific slot in use, so 3 keys genuinely give ~3x the free-tier

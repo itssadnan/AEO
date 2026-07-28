@@ -13,6 +13,7 @@ export async function runNvidiaNimPrompt(options: {
   failoverMode: FailoverMode;
   knownDeadSlots?: ReadonlySet<KeySlot>;
   onKeyDead?: (provider: ProviderName, slot: KeySlot, code: string) => Promise<void>;
+  onAttempt?: (slot: KeySlot) => void;
   fetchImpl?: typeof fetch;
 }): Promise<string> {
   const fetchImpl = options.fetchImpl ?? fetch;
@@ -21,6 +22,7 @@ export async function runNvidiaNimPrompt(options: {
     mode: options.failoverMode,
     knownDeadSlots: options.knownDeadSlots,
     onKeyDead: options.onKeyDead,
+    onAttempt: options.onAttempt,
     run: async (key) => {
       let response: Response;
       try {

@@ -107,6 +107,7 @@ async function runProviderCall(options: {
   prompt: string;
   model: string;
   failoverMode: FailoverMode;
+  onAttempt?: (slot: KeySlot) => void;
 }): Promise<{ text: string; citations: unknown[]; groundingMetadata: Record<string, unknown> }> {
   // Read the durably-persisted dead-key set from Postgres and thread it
   // into key selection. A prior version fetched this and then never used
@@ -123,6 +124,7 @@ async function runProviderCall(options: {
       failoverMode: mode,
       knownDeadSlots,
       onKeyDead: markKeyDead,
+      onAttempt: options.onAttempt,
       fetchImpl: fetch,
     });
     return {
@@ -137,6 +139,7 @@ async function runProviderCall(options: {
       failoverMode: mode,
       knownDeadSlots,
       onKeyDead: markKeyDead,
+      onAttempt: options.onAttempt,
       fetchImpl: fetch,
     });
     return { text, citations: [], groundingMetadata: {} };
