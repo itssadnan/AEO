@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -601,14 +601,14 @@ export type Database = {
           last_error_code?: string | null
           mention_count?: number
           opportunity_gaps?: Json
-          period_end: string
-          period_start: string
+          period_end?: string
+          period_start?: string
           recommended_actions?: Json | null
-          score: number
+          score?: number
           share_of_voice?: Json
           source_influence?: Json
           status?: string
-          workspace_id: string
+          workspace_id?: string
         }
         Update: {
           attempts?: number
@@ -662,9 +662,9 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
-          role: string
-          user_id: string
-          workspace_id: string
+          role?: string
+          user_id?: string
+          workspace_id?: string
         }
         Update: {
           created_at?: string
@@ -691,16 +691,14 @@ export type Database = {
           name: string
           plan_tier: string
           razorpay_customer_id: string | null
-          updated_at: string
         }
         Insert: {
           created_at?: string
           experiments_used?: number
           id?: string
-          name: string
+          name?: string
           plan_tier?: string
           razorpay_customer_id?: string | null
-          updated_at?: string
         }
         Update: {
           created_at?: string
@@ -709,7 +707,6 @@ export type Database = {
           name?: string
           plan_tier?: string
           razorpay_customer_id?: string | null
-          updated_at?: string
         }
         Relationships: []
       }
@@ -758,17 +755,30 @@ export type Database = {
           workspace_id: string
         }[]
       }
-      complete_check_job: {
-        Args: {
-          p_citations: Json
-          p_grounding_metadata: Json
-          p_job_id: string
-          p_model: string
-          p_provider: string
-          p_raw_answer: string
-        }
-        Returns: undefined
-      }
+      complete_check_job:
+        | {
+            Args: {
+              p_citations: Json
+              p_grounding_metadata: Json
+              p_job_id: string
+              p_model: string
+              p_provider: string
+              p_raw_answer: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_citations: Json
+              p_grounding_metadata: Json
+              p_job_id: string
+              p_key_slot?: string
+              p_model: string
+              p_provider: string
+              p_raw_answer: string
+            }
+            Returns: undefined
+          }
       complete_extraction: {
         Args: {
           p_brand_mentioned: boolean
@@ -835,15 +845,26 @@ export type Database = {
         Args: { p_stale_after_minutes?: number }
         Returns: number
       }
-      retry_or_fail_check_job: {
-        Args: {
-          p_error_code: string
-          p_job_id: string
-          p_provider?: string
-          p_retry_after_seconds?: number
-        }
-        Returns: undefined
-      }
+      retry_or_fail_check_job:
+        | {
+            Args: {
+              p_error_code: string
+              p_job_id: string
+              p_provider?: string
+              p_retry_after_seconds?: number
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_error_code: string
+              p_job_id: string
+              p_key_slot?: string
+              p_provider?: string
+              p_retry_after_seconds?: number
+            }
+            Returns: undefined
+          }
       retry_or_fail_extraction: {
         Args: { p_error_code: string; p_extraction_id: string }
         Returns: undefined

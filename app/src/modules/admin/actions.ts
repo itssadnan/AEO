@@ -20,32 +20,38 @@ import {
 } from "./queries";
 
 export async function getKeyHealthAction(): Promise<KeyHealthRow[]> {
-  await requireAdmin();
+  const auth = await requireAdmin();
+  if (auth) throw new Error(auth.error);
   return getKeyHealth();
 }
 
 export async function getFailoverModesAction(): Promise<Record<ProviderName, FailoverMode>> {
-  await requireAdmin();
+  const auth = await requireAdmin();
+  if (auth) throw new Error(auth.error);
   return getFailoverModes();
 }
 
 export async function getQuotaSnapshotAction(): Promise<ProviderQuotaSnapshot[]> {
-  await requireAdmin();
+  const auth = await requireAdmin();
+  if (auth) throw new Error(auth.error);
   return getQuotaSnapshot();
 }
 
 export async function getErrorLogAction(limit = 100): Promise<ErrorLogEntry[]> {
-  await requireAdmin();
+  const auth = await requireAdmin();
+  if (auth) throw new Error(auth.error);
   return getErrorLog(limit);
 }
 
 export async function getChurnSignalAction(inactiveDays = 14): Promise<ChurnCustomer[]> {
-  await requireAdmin();
+  const auth = await requireAdmin();
+  if (auth) throw new Error(auth.error);
   return getChurnSignal(inactiveDays);
 }
 
 export async function getAiTaskConfigsAction(): Promise<AiTaskConfigRow[]> {
-  await requireAdmin();
+  const auth = await requireAdmin();
+  if (auth) throw new Error(auth.error);
   return getAiTaskConfigs();
 }
 
@@ -56,17 +62,21 @@ export async function upsertAiTaskConfigAction(input: {
   model: string;
   enabled: boolean;
 }): Promise<AiTaskConfigRow> {
-  await requireAdmin();
+  const auth = await requireAdmin();
+  if (auth) throw new Error(auth.error);
   return upsertAiTaskConfig(input);
 }
 
-export async function clearDeadKeyAction(provider: ProviderName, slot: KeySlot): Promise<{ error: string } | { ok: true }> {
-  await requireAdmin();
+export async function clearDeadKeyAction(
+  provider: ProviderName,
+  slot: KeySlot
+): Promise<{ error: string } | { ok: true }> {
+  const auth = await requireAdmin();
+  if (auth) return auth;
 
   const { createSupabaseServiceRoleClient } = await import("@/lib/db");
   const supabase = createSupabaseServiceRoleClient();
 
-  // Validate inputs
   if (!["gemini", "nvidia_nim"].includes(provider)) {
     return { error: "Invalid provider" };
   }
@@ -84,13 +94,16 @@ export async function clearDeadKeyAction(provider: ProviderName, slot: KeySlot):
   return { ok: true };
 }
 
-export async function setFailoverModeAction(provider: ProviderName, mode: FailoverMode): Promise<{ error: string } | { ok: true }> {
-  await requireAdmin();
+export async function setFailoverModeAction(
+  provider: ProviderName,
+  mode: FailoverMode
+): Promise<{ error: string } | { ok: true }> {
+  const auth = await requireAdmin();
+  if (auth) return auth;
 
   const { createSupabaseServiceRoleClient } = await import("@/lib/db");
   const supabase = createSupabaseServiceRoleClient();
 
-  // Validate inputs
   if (!["gemini", "nvidia_nim"].includes(provider)) {
     return { error: "Invalid provider" };
   }
@@ -107,13 +120,16 @@ export async function setFailoverModeAction(provider: ProviderName, mode: Failov
   return { ok: true };
 }
 
-export async function deleteWorkspaceOverrideAction(taskKey: string, workspaceId: string): Promise<{ error: string } | { ok: true }> {
-  await requireAdmin();
+export async function deleteWorkspaceOverrideAction(
+  taskKey: string,
+  workspaceId: string
+): Promise<{ error: string } | { ok: true }> {
+  const auth = await requireAdmin();
+  if (auth) return auth;
 
   const { createSupabaseServiceRoleClient } = await import("@/lib/db");
   const supabase = createSupabaseServiceRoleClient();
 
-  // Validate inputs
   const knownTaskKeys = [
     "grounded_search",
     "extraction",

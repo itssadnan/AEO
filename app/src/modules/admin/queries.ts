@@ -21,15 +21,8 @@ export type {
   FailoverMode,
 } from "./types";
 
-// Known free-tier caps for reference only -- these are NOT enforced by the
-// application, they are informational only. The real limits are enforced by
-// the provider APIs themselves and can change without notice. We surface them
-// here so an admin can roughly gauge "how close are we" without leaving the
-// console. Source: Google AI Studio docs (Gemini 1.5 Flash: 1,500 RPM / 1M
-// TPM free tier) and NVIDIA NIM docs (varies by model, typically 60 RPM free
-// tier). These numbers are deliberately NOT used in any quota-enforcement
-// logic -- the worker's key-pool failover is driven by actual 429 responses,
-// not by these caps.
+export { isNearCap } from "./quota-caps";
+
 const KNOWN_FREE_TIER_CAPS: Record<ProviderName, string> = {
   gemini: "1,500 RPM / 1M TPM (Google AI Studio free tier, approximate)",
   nvidia_nim: "60 RPM typical (NVIDIA NIM free tier, varies by model)",
@@ -42,10 +35,6 @@ async function getSupabase() {
 export async function getKeyHealth(): Promise<KeyHealthRow[]> {
   const supabase = await getSupabase();
 
-  // ai_provider_key_health is the source of truth for which keys exist and their
-  // health state. It has columns: provider, key_slot, is_dead, dead_at,
-  // last_error_code. This table is managed by the worker (Module 5.3) and
-  // the admin console (this module) -- no other code writes to it.
   const { data, error } = await supabase
     .from("ai_provider_key_health")
     .select("provider, key_slot, is_dead, dead_at, last_error_code")
@@ -90,9 +79,6 @@ export async function getFailoverModes(): Promise<Record<ProviderName, FailoverM
 export async function getQuotaSnapshot(): Promise<ProviderQuotaSnapshot[]> {
   const supabase = await getSupabase();
 
-  // Query check_runs from the last 24h, grouped by provider and key_slot.
-  // key_slot is nullable (historical rows and failures where no key was
-  // attempted have null). We bucket null into "unknown".
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
   const { data, error } = await supabase
@@ -160,24 +146,13 @@ export async function getErrorLog(limit = 100): Promise<ErrorLogEntry[]> {
 export async function getChurnSignal(inactiveDays = 14): Promise<ChurnCustomer[]> {
   const supabase = await getSupabase();
 
-  // Get workspaces with their plan tier and last sign-in time from auth.users
-  // We need to join workspaces -> auth.users (via workspace_members or similar)
-  // For now, use the workspace's updated_at as a proxy if last_sign_in_at
-  // isn't directly available. The spec says "from auth.users" -- we'll use
-  // the Supabase admin API pattern via service role.
   const { data: workspaces, error: wsError } = await supabase
     .from("workspaces")
-    .select("id, name, plan_tier, updated_at")
-    .order("updated_at", { ascending: true });
+    .select("id, name, plan_tier, created_at")
+    .order("created_at", { ascending: true });
 
   if (wsError) throw wsError;
 
-  // For each workspace, get the owner's last_sign_in_at from auth.users
-  // This requires service role and the admin API. Since we're in a Server
-  // Action with service role, we can use supabase.auth.admin.listUsers()
-  // but that's heavy. Instead, we'll use a simpler approach: the workspace
-  // owner is typically the first member. We'll join workspace_members ->
-  // auth.users.
   const workspaceIds = (workspaces ?? []).map((w) => w.id);
   if (workspaceIds.length === 0) return [];
 
@@ -191,7 +166,6 @@ export async function getChurnSignal(inactiveDays = 14): Promise<ChurnCustomer[]
 
   const userIds = [...new Set((members ?? []).map((m) => m.user_id))];
   if (userIds.length === 0) {
-    // Fallback: use workspace updated_at
     return (workspaces ?? []).map((w) => ({
       workspaceId: w.id,
       workspaceName: w.name,
@@ -201,7 +175,6 @@ export async function getChurnSignal(inactiveDays = 14): Promise<ChurnCustomer[]
     }));
   }
 
-  // Use service role to fetch user metadata including last_sign_in_at
   const { data: users, error: userError } = await supabase.auth.admin.listUsers();
   if (userError) throw userError;
 
@@ -241,7 +214,6 @@ export async function getAiTaskConfigs(): Promise<AiTaskConfigRow[]> {
 
   if (error) throw error;
 
-  // Join workspace names for override rows
   const workspaceIds = [
     ...new Set((data ?? []).filter((r) => r.workspace_id).map((r) => r.workspace_id!)),
   ];
@@ -269,19 +241,17 @@ export async function getAiTaskConfigs(): Promise<AiTaskConfigRow[]> {
 
 export async function upsertAiTaskConfig(input: {
   taskKey: string;
-  workspaceId: string | null; // null = global default
+  workspaceId: string | null;
   provider: ProviderName;
   model: string;
   enabled: boolean;
 }): Promise<AiTaskConfigRow> {
   const supabase = await getSupabase();
 
-  // Validate provider
   if (!["gemini", "nvidia_nim"].includes(input.provider)) {
     throw new Error("Invalid provider");
   }
 
-  // Validate taskKey against known keys (from CONVENTIONS.md Section 5)
   const knownTaskKeys = [
     "grounded_search",
     "extraction",
@@ -293,8 +263,6 @@ export async function upsertAiTaskConfig(input: {
     throw new Error("Invalid taskKey");
   }
 
-  // Get current user (service role context, but we can get the acting admin's
-  // user ID from the auth context if available)
   const { data: { user } } = await supabase.auth.getUser();
 
   const { data, error } = await supabase
@@ -333,9 +301,4 @@ export async function upsertAiTaskConfig(input: {
     updatedAt: data.updated_at,
     updatedBy: data.updated_by,
   };
-}
-
-export function isNearCap(count: number, cap: number | null): boolean {
-  if (cap === null) return false;
-  return count >= Math.ceil(cap * 0.8);
 }

@@ -19,6 +19,7 @@ erDiagram
   PROMPTS ||--o{ CHECK_RUNS : produces
   LEADS |o--o| WORKSPACES : converts_to
   WORKSPACES |o--o{ AI_TASK_CONFIGS : overrides
+  ENGINE_ERROR_LOGS }o--o| CHECK_JOBS : logs_error_for
 
   WORKSPACES {
     uuid id PK
@@ -53,7 +54,8 @@ erDiagram
   CHECK_RUNS {
     uuid id PK
     uuid prompt_id FK
-    string provider "gemini, openai, perplexity, copilot"
+    string provider "gemini, nvidia_nim, openai, perplexity, copilot"
+    string key_slot "primary, secondary, tertiary (null for historical rows)"
     bool brand_mentioned
     int position
     string sentiment
@@ -109,32 +111,61 @@ erDiagram
     string model
     bool enabled
   }
+  AI_PROVIDER_KEY_HEALTH {
+    string provider PK
+    string key_slot PK "primary, secondary, tertiary"
+    bool is_dead
+    timestamptz dead_at
+    string last_error_code
+  }
+  AI_PROVIDER_SETTINGS {
+    string provider PK "gemini, nvidia_nim"
+    string failover_mode "shared, emergency-only"
+    uuid updated_by FK "auth.users"
+    timestamptz updated_at
+  }
+  ENGINE_ERROR_LOGS {
+    bigint id PK
+    string provider
+    string key_slot "primary, secondary, tertiary"
+    uuid job_id FK → check_jobs
+    string error_code
+    bool retryable
+    timestamptz created_at
+  }
 ```
 
 ## Full column reference
 
 Columns omitted from the diagram above for readability (every table also has `created_at timestamptz default now()` unless noted):
 
-| Table                  | Additional columns                                                                                                                                                                                         |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `workspaces`           | `created_at`                                                                                                                                                                                               |
-| `workspace_members`    | `created_at`                                                                                                                                                                                               |
-| `brands`               | `industry text`, `created_at`                                                                                                                                                                              |
-| `competitors`          | `website text`                                                                                                                                                                                             |
-| `prompts`              | `active bool default true`, `created_at`                                                                                                                                                                   |
-| `check_runs`           | `model text`, `raw_answer text`, `reasoning text`, `competitor_names_found jsonb`, `cited_domains jsonb`, `cited_domain_types jsonb`, `status text` (success/error/rate_limited), `checked_at timestamptz` |
-| `visibility_snapshots` | `workspace_id uuid FK → workspaces` (denormalized, single-equality RLS), `mention_count int`, `avg_rank numeric`, `share_of_voice jsonb`, `source_influence jsonb`, `explanation_breakdown jsonb`, `opportunity_gaps jsonb`, `recommended_actions jsonb`, `explanation_skip_reason text` ('free_plan' \| 'no_competitor_ahead'), `status text` (not_applicable/queued/processing/retry/completed/failed — tracks only the async explanation sub-step, not the row as a whole), `attempts int`, `claimed_at timestamptz`, `last_error_code text`, `explanation_provider text`, `explanation_model text`, `explanation_completed_at timestamptz`, `period_start date`, `period_end date`, `generated_at timestamptz`                                       |
-| `crawl_audits`         | `robots_txt_result jsonb`, `schema_present bool`, `heading_structure jsonb`, `checked_at timestamptz`                                                                                                                                 |
-| `alert_logs`           | `payload jsonb`                                                                                                                                                                                            |
-| `subscriptions`        | `plan_tier text`, `current_period_end timestamptz`                                                                                                                                                         |
-| `usage_counters`       | `prompts_used int`                                                                                                                                                                                         |
-| `free_check_cache`     | `brand_name_input text`, `prompt_input text`, `created_at` (TTL enforced in application logic — see caching note below)                                                                                    |
-| `leads`                | `company_name text`, `contact_email text`, `free_check_result jsonb`, `email_sent_at timestamptz`                                                                                                          |
-| `ai_task_configs`      | `updated_by uuid FK → auth.users`, `updated_at timestamptz`, `created_at`                                                                                                                                  |
+| Table                    | Additional columns                                                                                                                                                                                         |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `workspaces`             | `created_at`                                                                                                                                                                                               |
+| `workspace_members`      | `created_at`                                                                                                                                                                                               |
+| `brands`                 | `industry text`, `created_at`                                                                                                                                                                              |
+| `competitors`            | `website text`                                                                                                                                                                                             |
+| `prompts`                | `active bool default true`, `created_at`                                                                                                                                                                   |
+| `check_runs`             | `key_slot text`, `model text`, `raw_answer text`, `reasoning text`, `competitor_names_found jsonb`, `cited_domains jsonb`, `cited_domain_types jsonb`, `status text` (success/error/rate_limited), `checked_at timestamptz` |
+| `visibility_snapshots`   | `workspace_id uuid FK → workspaces` (denormalized, single-equality RLS), `mention_count int`, `avg_rank numeric`, `share_of_voice jsonb`, `source_influence jsonb`, `explanation_breakdown jsonb`, `opportunity_gaps jsonb`, `recommended_actions jsonb`, `explanation_skip_reason text` ('free_plan' \| 'no_competitor_ahead'), `status text` (not_applicable/queued/processing/retry/completed/failed — tracks only the async explanation sub-step, not the row as a whole), `attempts int`, `claimed_at timestamptz`, `last_error_code text`, `explanation_provider text`, `explanation_model text`, `explanation_completed_at timestamptz`, `period_start date`, `period_end date`, `generated_at timestamptz`                                       |
+| `crawl_audits`           | `robots_txt_result jsonb`, `schema_present bool`, `heading_structure jsonb`, `checked_at timestamptz`                                                                                                                                 |
+| `alert_logs`             | `payload jsonb`                                                                                                                                                                                            |
+| `subscriptions`          | `plan_tier text`, `current_period_end timestamptz`                                                                                                                                                         |
+| `usage_counters`         | `prompts_used int`                                                                                                                                                                                         |
+| `free_check_cache`       | `brand_name_input text`, `prompt_input text`, `created_at` (TTL enforced in application logic — see caching note below)                                                                                    |
+| `leads`                  | `company_name text`, `contact_email text`, `free_check_result jsonb`, `email_sent_at timestamptz`                                                                                                          |
+| `ai_task_configs`        | `updated_by uuid FK → auth.users`, `updated_at timestamptz`, `created_at`                                                                                                                                  |
+| `ai_provider_key_health` | `updated_at timestamptz`                                                                                                                                                                                   |
+| `ai_provider_settings`   | `updated_at timestamptz`                                                                                                                                                                                   |
+| `engine_error_logs`      | `created_at timestamptz`                                                                                                                                                                                   |
 
 ## Design decisions (read before modifying this schema)
 
 **Why `check_runs` isn't split into a raw-answer table and a separate extracted-fields table.** They are always 1:1 (module 5.4 always processes exactly one 5.3 result) and always read together on the Prompt Explorer view. Splitting them would force a join on every read for no isolation benefit — the extraction fields are simply nullable until 5.4 finishes processing a row.
+
+**Why `check_runs` records `key_slot` (added in Module 5.10).** To surface per-key quota consumption (primary/secondary/tertiary) in the Admin Console (5.10), worker calls capture which key slot executed each request via an `onAttempt` callback in `withKeyFailover` and record `p_key_slot` in `complete_check_job` and `retry_or_fail_check_job`. Historical rows prior to migration 0019 are nullable and display as an "unknown" slot bucket.
+
+**Why `ai_provider_key_health`, `ai_provider_settings`, and `engine_error_logs` have service-role-only access.** Built in Module 5.3 and surfaced in Module 5.10, these tables track API key health, global failover mode settings (`shared` vs `emergency-only`), and detailed execution error logs. They have RLS enabled with zero policies (deny-all to PostgREST) and are accessed exclusively via server-side code using the Supabase service-role client.
 
 **Why `visibility_snapshots` holds both the score/share-of-voice data and the Explanation Engine output.** Same reasoning: one snapshot per brand per period, computed together, always displayed together on the Competitor Explorer view (module 5.6).
 

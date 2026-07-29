@@ -1,4 +1,4 @@
-// Supabase Edge Function — Module 5.3 queue worker.
+// Supabase Edge Function  Module 5.3 queue worker.
 // Deploy with: supabase functions deploy engine-worker --no-verify-jwt
 // The endpoint is protected by ENGINE_WORKER_SECRET (kept in Vault and
 // sent only by the pg_cron/pg_net invocation), not by a browser session.
@@ -97,9 +97,29 @@ async function getKeyHealth(provider: "gemini" | "nvidia_nim"): Promise<Set<KeyS
   return new Set(health.filter((row) => row.is_dead).map((row) => row.key_slot));
 }
 
+const ADMIN_ALERT_WEBHOOK_URL = Deno.env.get("ADMIN_ALERT_WEBHOOK_URL");
+
 async function markKeyDead(provider: ProviderName, slot: KeySlot, code: string): Promise<void> {
   await rpc("mark_ai_key_dead", { p_provider: provider, p_key_slot: slot, p_error_code: code });
   log("warn", "API key marked dead", { provider, slot, code });
+
+  if (ADMIN_ALERT_WEBHOOK_URL) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      await fetch(ADMIN_ALERT_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: `AI provider key dead: ${provider} ${slot} (${code})` }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+    } catch (err) {
+      log("error", "Failed to send dead key webhook alert", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
 }
 
 async function runProviderCall(options: {
@@ -108,7 +128,7 @@ async function runProviderCall(options: {
   model: string;
   failoverMode: FailoverMode;
   onAttempt?: (slot: KeySlot) => void;
-}): Promise<{ text: string; citations: unknown[]; groundingMetadata: Record<string, unknown> }> {
+}): Promise<{ text: string; citations: unknown[]; groundingMetadata: Record<string, unknown>; keySlot: KeySlot | undefined }> {
   // Read the durably-persisted dead-key set from Postgres and thread it
   // into key selection. A prior version fetched this and then never used
   // it -- withKeyFailover kept its own disconnected in-memory set, so a
@@ -117,6 +137,9 @@ async function runProviderCall(options: {
   const knownDeadSlots = await getKeyHealth(options.provider);
   const mode = options.failoverMode;
 
+  // Capture which key slot was actually used for this successful/failed attempt
+  let lastAttemptedSlot: KeySlot | undefined;
+
   if (options.provider === "gemini") {
     const result = await runGeminiGroundedPrompt({
       prompt: options.prompt,
@@ -124,13 +147,17 @@ async function runProviderCall(options: {
       failoverMode: mode,
       knownDeadSlots,
       onKeyDead: markKeyDead,
-      onAttempt: options.onAttempt,
+      onAttempt: (slot) => {
+        lastAttemptedSlot = slot;
+        options.onAttempt?.(slot);
+      },
       fetchImpl: fetch,
     });
     return {
       text: result.text,
       citations: result.citations,
       groundingMetadata: result.groundingMetadata,
+      keySlot: lastAttemptedSlot,
     };
   } else {
     const text = await runNvidiaNimPrompt({
@@ -139,10 +166,13 @@ async function runProviderCall(options: {
       failoverMode: mode,
       knownDeadSlots,
       onKeyDead: markKeyDead,
-      onAttempt: options.onAttempt,
+      onAttempt: (slot) => {
+        lastAttemptedSlot = slot;
+        options.onAttempt?.(slot);
+      },
       fetchImpl: fetch,
     });
-    return { text, citations: [], groundingMetadata: {} };
+    return { text, citations: [], groundingMetadata: {}, keySlot: lastAttemptedSlot };
   }
 }
 
@@ -159,6 +189,12 @@ async function processJobWithStagger(job: Job, index: number): Promise<void> {
   // on why retry_or_fail_check_job needs the real provider, not a
   // hardcoded guess.
   let provider: "gemini" | "nvidia_nim" = "gemini";
+
+  // Hoisted so the catch block can pass the last attempted key slot to
+  // retry_or_fail_check_job (p_key_slot). If no attempt was made at all
+  // before failing (e.g. not_configured -- every key missing), this stays
+  // undefined and we pass null to the RPC.
+  let lastAttemptedSlot: KeySlot | undefined;
 
   try {
     // Resolve provider + model for this workspace/task
@@ -180,6 +216,9 @@ async function processJobWithStagger(job: Job, index: number): Promise<void> {
       prompt: job.prompt_text,
       model: task.model,
       failoverMode: await getFailoverMode(task.provider),
+      onAttempt: (slot) => {
+        lastAttemptedSlot = slot;
+      },
     });
 
     // Record successful result
@@ -190,9 +229,10 @@ async function processJobWithStagger(job: Job, index: number): Promise<void> {
       p_raw_answer: result.text,
       p_citations: result.citations,
       p_grounding_metadata: result.groundingMetadata,
+      p_key_slot: result.keySlot ?? null,
     });
 
-    log("info", "Job completed successfully", { jobId: job.job_id, provider: task.provider });
+    log("info", "Job completed successfully", { jobId: job.job_id, provider: task.provider, keySlot: result.keySlot });
   } catch (error) {
     const typed = error as { code?: string; retryAfterSeconds?: number };
     const errorCode = typed.code ?? "worker_error";
@@ -203,6 +243,7 @@ async function processJobWithStagger(job: Job, index: number): Promise<void> {
       p_error_code: errorCode,
       p_retry_after_seconds: retryAfter,
       p_provider: provider,
+      p_key_slot: lastAttemptedSlot ?? null,
     });
 
     log("error", "Job failed", {
@@ -210,6 +251,7 @@ async function processJobWithStagger(job: Job, index: number): Promise<void> {
       provider,
       errorCode,
       retryAfter,
+      keySlot: lastAttemptedSlot,
       message: error instanceof Error ? error.message : String(error),
     });
   }

@@ -430,8 +430,8 @@
       "name": "Engine Query Engine",
       "phase": "1",
       "specSection": "5.3",
-      "status": "in_progress",
-      "percentComplete": 98,
+      "status": "done",
+      "percentComplete": 100,
       "dependsOn": [
         "5.2"
       ],
@@ -503,7 +503,7 @@
         },
         {
           "text": "Admin Console (5.10) surfaces which failoverMode is active per provider and reminds the admin to flip it the moment primary is upgraded (billing enabled for Gemini, or the free 200 RPM increase for NVIDIA NIM)",
-          "done": false
+          "done": true
         },
         {
           "text": "Free-plan workspaces never enter the recurring scheduler — checks are triggered on-demand by the user only, gated by workspaces.experiments_used (lifetime cap: 3, never resets); a 4th attempt is blocked outright with an upgrade prompt, never silently queued or allowed",
@@ -516,8 +516,9 @@
       ],
       "cachingNotes": "Paid plans: guard against redundant calls by verifying last_checked_at for that (brand, prompt) pair is older than the plan's check interval before enqueueing — a Postgres timestamp check, not a separate cache service. Free plan: no time-based guard applies (there is no recurring cadence) — instead gated by the workspaces.experiments_used lifetime counter, checked before allowing an on-demand run.",
       "securityNotes": "Gemini key is server-only, called exclusively from this worker, never from a client-reachable route. Log request counts, never prompt/answer content, in any cross-tenant-visible log.",
-      "lastUpdated": "2026-07-25",
-      "lastUpdatedBy": "Claude (independent audit, bug-fix, and live-deploy session)",
+      "lastUpdated": "2026-07-29",
+      "lastUpdatedBy": "Claude (5.10 completion session)",
+
       "decisionsLog": [
         {
           "date": "2026-07-23",
@@ -1084,60 +1085,86 @@
       "name": "Admin / Ops Console",
       "phase": "4",
       "specSection": "5.10",
-      "status": "not_started",
-      "percentComplete": 0,
+      "status": "done",
+      "percentComplete": 100,
       "dependsOn": [
         "5.3"
       ],
       "blocks": [],
-      "owner": "unassigned",
-      "filesTouched": [],
+      "owner": "Claude / Antigravity",
+      "filesTouched": [
+        "app/supabase/migrations/0019_admin_ops_console.sql",
+        "app/src/types/database.ts",
+        "app/src/lib/security/admin.ts",
+        "app/src/lib/security/index.ts",
+        "app/src/modules/admin/types.ts",
+        "app/src/modules/admin/quota-caps.ts",
+        "app/src/modules/admin/queries.ts",
+        "app/src/modules/admin/actions.ts",
+        "app/src/modules/admin/index.ts",
+        "app/src/app/admin/page.tsx",
+        "app/src/app/admin/quota-section.tsx",
+        "app/src/app/admin/key-health-section.tsx",
+        "app/src/app/admin/failover-mode-section.tsx",
+        "app/src/app/admin/error-log-section.tsx",
+        "app/src/app/admin/churn-signal-section.tsx",
+        "app/src/app/admin/ai-task-configs-section.tsx",
+        "app/src/lib/ai-providers/key-pool.ts",
+        "app/supabase/functions/_shared/key-pool.ts",
+        "app/supabase/functions/_shared/gemini-provider.ts",
+        "app/supabase/functions/_shared/nvidia-nim-provider.ts",
+        "app/supabase/functions/engine-worker/index.ts",
+        "app/.env.example",
+        "docs/architecture/entity-relationship-diagram.md",
+        "app/tests/unit/admin.test.ts",
+        "app/tests/unit/key-pool.test.ts"
+      ],
       "acceptanceCriteria": [
         {
           "text": "Live Gemini + NVIDIA NIM quota consumption view, broken down per key in the pool (primary/secondary/tertiary), not just per provider",
-          "done": false
+          "done": true
         },
         {
           "text": "Key-pool health view: which keys are alive vs. marked dead, when a key died, and a manual clear-dead-flag action",
-          "done": false
+          "done": true
         },
         {
           "text": "A key transitioning to dead (401/403) fires an immediate alert, not just a log line",
-          "done": false
+          "done": true
         },
         {
           "text": "Displays current failoverMode (\"shared\" vs \"emergency-only\") per provider, with a visible reminder to switch to emergency-only the moment primary is upgraded",
-          "done": false
+          "done": true
         },
         {
           "text": "Error/failure log for failed checks",
-          "done": false
+          "done": true
         },
         {
           "text": "Basic churn signal: customers inactive 2+ weeks",
-          "done": false
+          "done": true
         },
         {
           "text": "AI task config view: list every task key's current global-default (provider, model, enabled) from ai_task_configs, editable inline",
-          "done": false
+          "done": true
         },
         {
           "text": "Enable/disable a model for a task globally (flips enabled on the global-default row)",
-          "done": false
+          "done": true
         },
         {
           "text": "Per-workspace override: search a workspace, add/edit/remove its override row for any task key, without touching the global default",
-          "done": false
+          "done": true
         },
         {
           "text": "Every write to ai_task_configs records updated_by + updated_at",
-          "done": false
+          "done": true
         }
       ],
       "cachingNotes": "Short TTL (e.g. 60s) on the quota-usage view is fine — it's an internal dashboard, not billing-critical, so a slightly stale read is an acceptable tradeoff for lower DB load.",
       "securityNotes": "Gate at the server/API layer by role check, not just by hiding a frontend link.",
-      "lastUpdated": "2026-07-23",
-      "lastUpdatedBy": null,
+      "lastUpdated": "2026-07-29",
+      "lastUpdatedBy": "Claude (delegate-and-verify session)",
       "decisionsLog": [
         {
           "date": "2026-07-23",
@@ -1154,8 +1181,13 @@
         {
           "date": "2026-07-27",
           "text": "Implementation spec written (progress/specs/5.10-admin-ops-console.md) per the delegate-and-verify workflow — not yet implemented, status/percentComplete intentionally unchanged (a spec is not an implementation, same rule as 5.7's spec-writing entry). Verified live against the real database before writing it (list_tables, execute_sql), not assumed: ai_task_configs (5 rows), ai_provider_key_health (6 rows), ai_provider_settings (2 rows, real failover_mode column), engine_error_logs (268 rows) all exist with RLS enabled and zero policies (correct, intentional — matches docs/CONVENTIONS.md Section 5's documented 'admin-only, service-role-only' exception, not a gap). Also confirmed auth.users has last_sign_in_at (churn signal source, no new column needed) and the exact live signatures of complete_check_job/retry_or_fail_check_job (needed for the migration's revoke/grant statements to target the right overload, per the 0011 lesson about stale duplicate overloads). Key real finding while scoping: no table anywhere records which key slot (primary/secondary/tertiary) handled a successful or ordinary-retried request — only a dead-key (401/403) event does. The acceptance criterion's literal wording ('quota consumption... broken down per key') can't be met without this. Presented the tradeoff to the user directly (add the schema+worker change vs. descope to per-provider-only) rather than deciding unilaterally, since it means touching Module 5.3's engine-worker — already the most bug-prone module in this project. User chose to add it. Spec adds a nullable check_runs.key_slot column, a new onAttempt observation hook to withKeyFailover (both the Next.js and Deno copies, kept identical per existing convention), and threads the slot through complete_check_job/retry_or_fail_check_job without touching AiProviderError or any existing failover decision logic. Also designed: admin gating via a server-only ADMIN_USER_EMAILS allowlist (no admin-role DB column/migration — none exists today, and a two-person team doesn't need one), and an optional ADMIN_ALERT_WEBHOOK_URL for the 'immediate alert on dead key' criterion, since Module 5.8's real alerting infra doesn't exist yet and this module's own criterion shouldn't wait on it."
+        },
+        {
+          "date": "2026-07-29",
+          "text": "Completed full implementation and verification pass under the delegate-and-verify skill workflow. Applied migration 0019 to live Supabase project vloradmcvozmhvvxiyvd, regenerated types in database.ts, wired key_slot onAttempt hook through key-pool/providers/engine-worker (kept Next.js and Deno copies identical), added ADMIN_ALERT_WEBHOOK_URL POST hook on key death, implemented Admin Console UI and Server Actions gated by requireAdmin(), added unit tests in admin.test.ts and key-pool.test.ts (10/10 passing), updated ERD documentation, and verified tsc --noEmit passes clean."
         }
       ],
+
       "blockers": [],
       "detailFile": "progress/modules/5.10-admin-ops-console.md"
     },
