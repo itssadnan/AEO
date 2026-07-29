@@ -1,4 +1,4 @@
-import { normalizeEmail } from "@/modules/auth/email";
+import { normalizeEmail } from "@/modules/auth";
 import { createSupabaseServerClient } from "@/lib/db";
 
 /**

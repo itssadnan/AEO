@@ -245,6 +245,18 @@ export async function upsertAiTaskConfig(input: {
   provider: ProviderName;
   model: string;
   enabled: boolean;
+  // The calling admin's auth.users id, resolved by the caller (a Server
+  // Action) from the session-scoped client -- NOT derivable here.
+  // createSupabaseServiceRoleClient() has no session attached
+  // (persistSession: false, no cookies), so `.auth.getUser()` on it always
+  // returns null. Calling it here silently recorded updated_by as null on
+  // every single write, breaking this module's own explicit acceptance
+  // criterion ("Every write to ai_task_configs records updated_by +
+  // updated_at") without any error or test failure to catch it. Found
+  // during independent verification, 2026-07-28 -- see
+  // app/src/lib/db/supabase-service-role.ts's own header comment for why
+  // this client has no session.
+  updatedBy: string | null;
 }): Promise<AiTaskConfigRow> {
   const supabase = await getSupabase();
 
@@ -263,8 +275,6 @@ export async function upsertAiTaskConfig(input: {
     throw new Error("Invalid taskKey");
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
-
   const { data, error } = await supabase
     .from("ai_task_configs")
     .upsert({
@@ -273,7 +283,7 @@ export async function upsertAiTaskConfig(input: {
       provider: input.provider,
       model: input.model,
       enabled: input.enabled,
-      updated_by: user?.id ?? null,
+      updated_by: input.updatedBy,
     }, { onConflict: "task_key,workspace_id" })
     .select("id, task_key, workspace_id, provider, model, enabled, updated_at, updated_by")
     .single();

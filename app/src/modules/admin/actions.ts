@@ -64,7 +64,19 @@ export async function upsertAiTaskConfigAction(input: {
 }): Promise<AiTaskConfigRow> {
   const auth = await requireAdmin();
   if (auth) throw new Error(auth.error);
-  return upsertAiTaskConfig(input);
+
+  // Resolve the calling admin's own id from the session-scoped client
+  // (requireAdmin() already proved this session belongs to an admin) --
+  // NOT from the service-role client the actual write uses, which has no
+  // session and would always resolve to null. See queries.ts's
+  // upsertAiTaskConfig for the full explanation of why this split exists.
+  const { createSupabaseServerClient } = await import("@/lib/db");
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  return upsertAiTaskConfig({ ...input, updatedBy: user?.id ?? null });
 }
 
 export async function clearDeadKeyAction(
