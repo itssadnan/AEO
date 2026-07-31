@@ -17,9 +17,21 @@ type GeminiResponse = {
   }>;
 };
 
+// This call always requests Google Search grounding (see the `tools`
+// array below), so every 429 this function sees is a grounding-tool
+// rate limit, not a plain generateContent one. Confirmed live 2026-07-29
+// (Module 5.3 investigation): Google returns no `retry-after` header on
+// these, and the grounding tool's real daily quota is both far lower
+// than AI Studio's displayed cap and undisclosed -- so a 429 here is far
+// more likely to be a same-day quota exhaustion than a brief burst.
+// Default to the longest backoff retry_or_fail_check_job's SQL layer
+// allows (3600s, its own hard cap) rather than the generic 60s a
+// transient rate limit would warrant, so the worker stops re-attempting
+// an exhausted daily budget every few minutes. If Google ever does send
+// a real retry-after, that value still wins.
 function retryAfterSeconds(response: Response): number {
   const value = Number(response.headers.get("retry-after"));
-  return Number.isFinite(value) && value > 0 ? Math.min(value, 3600) : 60;
+  return Number.isFinite(value) && value > 0 ? Math.min(value, 3600) : 3600;
 }
 
 export async function runGeminiGroundedPrompt(options: {
