@@ -11,7 +11,7 @@
   "specDoc": "docs/spec/AEO_Visibility_Platform_Spec_v1.1.docx",
   "conventionsDoc": "docs/CONVENTIONS.md",
   "specVersion": "1.1",
-  "lastUpdated": "2026-07-27",
+  "lastUpdated": "2026-07-31",
   "leftForFinalTouches": "progress/LEFT_FOR_FINAL_TOUCHES.md",
   "statusValues": [
     "not_started",
@@ -1011,29 +1011,42 @@
       "name": "Alerting & Reporting",
       "phase": "3",
       "specSection": "5.8",
-      "status": "not_started",
-      "percentComplete": 0,
+      "status": "in_review",
+      "percentComplete": 90,
       "dependsOn": [
         "5.5",
         "5.7"
       ],
       "blocks": [],
-      "owner": "unassigned",
-      "filesTouched": [],
+      "owner": "Claude",
+      "filesTouched": [
+        "app/supabase/migrations/0021_alerting_and_reporting.sql",
+        "app/supabase/migrations/0022_alerting_worker_cron.sql",
+        "app/supabase/functions/alerting-worker/index.ts",
+        "app/src/modules/alerting/render.ts",
+        "app/src/modules/alerting/index.ts",
+        "app/tests/unit/alerting-render.test.ts",
+        "app/.env.example",
+        "docs/architecture/entity-relationship-diagram.md"
+      ],
       "acceptanceCriteria": [
         {
           "text": "Weekly digest: score change, new/lost mentions, new crawl issues",
-          "done": false
+          "done": true
         },
         {
           "text": "Threshold alert: competitor newly cited where customer wasn't (Growth+ plans)",
+          "done": true
+        },
+        {
+          "text": "Real email actually delivered to a real inbox (Resend account required — see Blockers)",
           "done": false
         }
       ],
       "cachingNotes": "N/A — each digest is generated once per send, inherently non-repeated.",
-      "securityNotes": "SPF/DKIM/DMARC configured on the sending domain before the first real send.",
-      "lastUpdated": "2026-07-26",
-      "lastUpdatedBy": null,
+      "securityNotes": "SPF/DKIM/DMARC configured on the sending domain before the first real send. All user-entered text HTML-escaped before interpolation into generated email HTML (verified in alerting-render.test.ts). get_weekly_digest_candidates/get_new_threshold_alerts/record_alert_sent restricted to service_role only.",
+      "lastUpdated": "2026-07-31",
+      "lastUpdatedBy": "Claude (5.8 build + live-verification session)",
       "decisionsLog": [
         {
           "date": "2026-07-26",
@@ -1042,9 +1055,15 @@
         {
           "date": "2026-07-27",
           "note": "Now that 5.7 is done, dependsOn is fully satisfied — but Resend account + SPF/DKIM/DMARC DNS records still don't exist (asked the user directly; confirmed still not set up). Since this module blocks nothing else (blocks: []), deferring it costs nothing downstream. User agreed to defer and work on 5.10 (Admin/Ops Console) instead, which surfaced a separate real issue: it and 5.3 have a circular dependency (5.3's last unmet acceptance criterion requires 5.10 to exist; 5.10's dependsOn lists 5.3). User chose to build 5.10 first, then close out 5.3 — see both modules' decisions logs. 5.8 remains not_started, no change to its own scope; revisit once Resend + DNS are ready."
+        },
+        {
+          "date": "2026-07-31",
+          "note": "Started per explicit user instruction to finish whichever module doesn't require user intervention, since 5.3 is genuinely blocked on the user's own action and every other not_started module (5.9, 5.11, 5.12, 6.0) is blocked on either that same 5.3 dependency or its own deliberate deferral. Built migration 0021 (alert_logs + get_weekly_digest_candidates/get_new_threshold_alerts/record_alert_sent, all pure SQL), migration 0022 (weekly cron), and the alerting-worker Edge Function (deployed live, version 1). Verified all three new SQL functions live against synthetic __smoketest_5.8_* data (score_change/new-lost-mentions/crawl-issue-diff/idempotency all confirmed correct, then cleaned up). Verified the deployed worker's auth gate fails closed (real 401 via a live net.http_post invocation) since no available tool can set an Edge Function's own environment secret. tsc/prettier/126 unit tests (9 new) all clean. Deliberately skipped the spec's optional AI one-sentence summary given 5.3's ongoing AI-quota crisis. Remaining gap: real Resend account + ALERTING_WORKER_SECRET as an Edge Function secret, both requiring the user's own action (credential-entry is hard-prohibited for Claude regardless of authorization) — see module file Blockers. Status set to in_review, not done, until a real send is confirmed."
         }
       ],
-      "blockers": [],
+      "blockers": [
+        "User action required, cannot be completed by Claude under any authorization: real email delivery needs a real Resend account (RESEND_API_KEY/ALERTING_FROM_EMAIL) and ALERTING_WORKER_SECRET set as a real Edge Function secret (Vault-side value already exists). Worker deploys and runs safely today, cleanly skipping sends (never falsely marking as sent) until these are set."
+      ],
       "detailFile": "progress/modules/5.8-alerting-and-reporting.md"
     },
     {

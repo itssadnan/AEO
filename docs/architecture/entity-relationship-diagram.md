@@ -77,7 +77,8 @@ erDiagram
   ALERT_LOGS {
     uuid id PK
     uuid brand_id FK
-    string type
+    string type "weekly_digest, threshold_alert"
+    string dedupe_key "weekly_digest: period_start date; threshold_alert: competitor name"
     timestamp sent_at
   }
   SUBSCRIPTIONS {
@@ -149,7 +150,7 @@ Columns omitted from the diagram above for readability (every table also has `cr
 | `check_runs`             | `key_slot text`, `model text`, `raw_answer text`, `reasoning text`, `competitor_names_found jsonb`, `cited_domains jsonb`, `cited_domain_types jsonb`, `status text` (success/error/rate_limited), `checked_at timestamptz` |
 | `visibility_snapshots`   | `workspace_id uuid FK → workspaces` (denormalized, single-equality RLS), `mention_count int`, `avg_rank numeric`, `share_of_voice jsonb`, `source_influence jsonb`, `explanation_breakdown jsonb`, `opportunity_gaps jsonb`, `recommended_actions jsonb`, `explanation_skip_reason text` ('free_plan' \| 'no_competitor_ahead'), `status text` (not_applicable/queued/processing/retry/completed/failed — tracks only the async explanation sub-step, not the row as a whole), `attempts int`, `claimed_at timestamptz`, `last_error_code text`, `explanation_provider text`, `explanation_model text`, `explanation_completed_at timestamptz`, `period_start date`, `period_end date`, `generated_at timestamptz`                                       |
 | `crawl_audits`           | `robots_txt_result jsonb`, `schema_present bool`, `heading_structure jsonb`, `checked_at timestamptz`                                                                                                                                 |
-| `alert_logs`             | `payload jsonb`                                                                                                                                                                                            |
+| `alert_logs`             | `payload jsonb`, `recipient_count int`, unique on `(brand_id, type, dedupe_key)` — the idempotency/dedupe guard (Module 5.8)                                                                              |
 | `subscriptions`          | `plan_tier text`, `current_period_end timestamptz`                                                                                                                                                         |
 | `usage_counters`         | `prompts_used int`                                                                                                                                                                                         |
 | `free_check_cache`       | `brand_name_input text`, `prompt_input text`, `created_at` (TTL enforced in application logic — see caching note below)                                                                                    |
