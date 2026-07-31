@@ -7,6 +7,7 @@ import {
   getEmptyStateConfig,
   mapPlanTier,
 } from "@/modules/dashboard/queries";
+import { getSubscriptionForWorkspace, getUsageSnapshot } from "@/modules/billing";
 
 export default async function SettingsPage({
   searchParams,
@@ -75,10 +76,14 @@ export default async function SettingsPage({
     );
   }
 
-  const [brandWithRelations, overview, emptyState] = await Promise.all([
+  const mappedPlanTier = mapPlanTier(workspace.plan_tier);
+
+  const [brandWithRelations, overview, emptyState, subscription, usage] = await Promise.all([
     getBrandWithRelations(brandId),
     computeOverviewMetrics(brandId, "gemini"),
     getEmptyStateConfig(brandId),
+    getSubscriptionForWorkspace(supabase, workspace.id),
+    getUsageSnapshot(supabase, workspace.id, brandId, mappedPlanTier),
   ]);
 
   if (!brandWithRelations) {
@@ -92,7 +97,10 @@ export default async function SettingsPage({
       emptyState={emptyState}
       competitors={brandWithRelations.competitors}
       prompts={brandWithRelations.prompts}
-      workspace={{ ...workspace, plan_tier: mapPlanTier(workspace.plan_tier) }}
+      workspace={{ ...workspace, plan_tier: mappedPlanTier }}
+      subscription={subscription}
+      usage={usage}
+      isOwner={membership.role === "owner"}
     />
   );
 }

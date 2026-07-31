@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { EngineBadge } from "@/components/ui/engine-badge";
 import { PlanBadge } from "@/components/ui/plan-badge";
@@ -14,6 +15,52 @@ import type {
   Competitor,
   Prompt,
 } from "@/modules/dashboard/types";
+// Deliberately bypassing the modules/billing barrel (index.ts) here, same
+// exception already established and documented in Module 5.7's commit
+// "fix(5.7): bypass crawl-audit barrel for client-safe imports": the barrel
+// re-exports webhook-verify.ts/razorpay-client.ts alongside plain data and
+// Server Actions, and a "use client" file importing that mix breaks the
+// Vercel build (server-only code reachable from the client bundle graph).
+// Importing directly from plans.ts (plain data, no server APIs) and
+// actions.ts (a "use server" file -- Next.js compiles its exports into
+// client-safe RPC stubs regardless of import path) avoids the problem.
+import { PLAN_CATALOG, PAID_PLAN_TIER_IDS, type PaidPlanTierId } from "@/modules/billing/plans";
+import {
+  startCheckoutAction,
+  changePlanAction,
+  cancelSubscriptionAction,
+} from "@/modules/billing/actions";
+import type { SubscriptionRow, UsageSnapshot } from "@/modules/billing/queries";
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: Record<string, unknown>) => { open: () => void };
+  }
+}
+
+const RAZORPAY_CHECKOUT_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
+
+function loadRazorpayCheckoutScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (window.Razorpay) {
+      resolve();
+      return;
+    }
+    const existing = document.querySelector(`script[src="${RAZORPAY_CHECKOUT_SCRIPT_SRC}"]`);
+    if (existing) {
+      existing.addEventListener("load", () => resolve());
+      existing.addEventListener("error", () =>
+        reject(new Error("Failed to load Razorpay Checkout")),
+      );
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = RAZORPAY_CHECKOUT_SCRIPT_SRC;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Failed to load Razorpay Checkout"));
+    document.body.appendChild(script);
+  });
+}
 
 interface SettingsViewProps {
   brand: BrandWithRelations;
@@ -22,16 +69,112 @@ interface SettingsViewProps {
   competitors: Competitor[];
   prompts: Prompt[];
   workspace: { id: string; name: string; plan_tier: "free" | "starter" | "growth" | "agency" };
+  subscription: SubscriptionRow | null;
+  usage: UsageSnapshot;
+  isOwner: boolean;
 }
 
 /**
  * Settings view — brand settings, competitor management, prompt management, billing.
  */
-export function SettingsView({ brand, competitors, prompts, workspace }: SettingsViewProps) {
+export function SettingsView({
+  brand,
+  competitors,
+  prompts,
+  workspace,
+  subscription,
+  usage,
+  isOwner,
+}: SettingsViewProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"brand" | "competitors" | "prompts" | "billing">(
     "brand",
   );
   const [engine, setEngine] = useState<"gemini" | "nvidia-nim">("gemini");
+  const [billingBusy, setBillingBusy] = useState(false);
+  const [billingError, setBillingError] = useState<string | null>(null);
+  const [billingMessage, setBillingMessage] = useState<string | null>(null);
+
+  async function handleUpgrade(tier: PaidPlanTierId) {
+    setBillingBusy(true);
+    setBillingError(null);
+    setBillingMessage(null);
+    try {
+      const result = await startCheckoutAction(workspace.id, tier);
+      if ("error" in result) {
+        setBillingError(result.error);
+        return;
+      }
+      await loadRazorpayCheckoutScript();
+      if (!window.Razorpay) {
+        setBillingError("Razorpay Checkout failed to load.");
+        return;
+      }
+      const rzp = new window.Razorpay({
+        key: result.razorpayKeyId,
+        subscription_id: result.razorpaySubscriptionId,
+        name: "AEO Visibility",
+        description: `${PLAN_CATALOG[tier].name} plan`,
+        handler: () => {
+          setBillingMessage("Payment submitted — your plan will update once Razorpay confirms it.");
+          router.refresh();
+        },
+        theme: { color: "#6366f1" },
+      });
+      rzp.open();
+    } catch (err) {
+      setBillingError(err instanceof Error ? err.message : "Unknown error starting checkout.");
+    } finally {
+      setBillingBusy(false);
+    }
+  }
+
+  async function handleChangePlan(tier: PaidPlanTierId) {
+    setBillingBusy(true);
+    setBillingError(null);
+    setBillingMessage(null);
+    try {
+      const result = await changePlanAction(workspace.id, tier);
+      if ("error" in result) {
+        setBillingError(result.error);
+        return;
+      }
+      setBillingMessage("Plan change submitted — this may take a moment to reflect.");
+      router.refresh();
+    } finally {
+      setBillingBusy(false);
+    }
+  }
+
+  async function handleCancel() {
+    if (!subscription?.razorpay_subscription_id) return;
+    if (
+      !confirm(
+        "Cancel your subscription? You'll keep access until the end of the current billing period.",
+      )
+    ) {
+      return;
+    }
+    setBillingBusy(true);
+    setBillingError(null);
+    setBillingMessage(null);
+    try {
+      const result = await cancelSubscriptionAction(
+        workspace.id,
+        subscription.razorpay_subscription_id,
+      );
+      if ("error" in result) {
+        setBillingError(result.error);
+        return;
+      }
+      setBillingMessage(
+        "Cancellation requested — you'll keep access until the end of the current period.",
+      );
+      router.refresh();
+    } finally {
+      setBillingBusy(false);
+    }
+  }
 
   // Free tier lock check for competitor/prompt management
   const isLocked = workspace.plan_tier === "free";
@@ -370,78 +513,105 @@ export function SettingsView({ brand, competitors, prompts, workspace }: Setting
             Billing & Subscription
           </h2>
 
+          {billingError && (
+            <div className="p-3 bg-[var(--color-negative)]/10 border border-[var(--color-negative)]/30 rounded-lg text-sm text-[var(--color-negative)]">
+              {billingError}
+            </div>
+          )}
+          {billingMessage && (
+            <div className="p-3 bg-[var(--color-positive)]/10 border border-[var(--color-positive)]/30 rounded-lg text-sm text-[var(--color-positive)]">
+              {billingMessage}
+            </div>
+          )}
+          {!isOwner && (
+            <div className="p-3 bg-[var(--color-surface-1)] rounded-lg text-sm text-[var(--color-text-secondary)]">
+              Only the workspace owner can change plans or cancel the subscription.
+            </div>
+          )}
+
           <div className="p-4 bg-[var(--color-surface-1)] rounded-lg">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="font-medium text-[var(--color-text-primary)]">Current Plan</p>
                 <p className="text-sm text-[var(--color-text-secondary)]">
                   {workspace.name} workspace
+                  {subscription?.status && workspace.plan_tier !== "free"
+                    ? ` • subscription ${subscription.status}${subscription.cancel_at_cycle_end ? " (cancelling at period end)" : ""}`
+                    : ""}
                 </p>
               </div>
               <PlanBadge plan={workspace.plan_tier as "free" | "starter" | "growth" | "agency"} />
             </div>
 
-            {workspace.plan_tier === "free" ? (
-              <div className="space-y-4">
-                <div className="p-4 border border-[var(--color-border)] rounded-lg">
-                  <h3 className="font-medium text-[var(--color-text-primary)] mb-2">Free Plan</h3>
-                  <ul className="space-y-1 text-sm text-[var(--color-text-secondary)]">
-                    <li>✓ 1 brand</li>
-                    <li>✓ 5 prompts</li>
-                    <li>✓ 0 competitors (view only)</li>
-                    <li>✓ Overview dashboard</li>
-                    <li>✗ Competitor Explorer</li>
-                    <li>✗ Prompt Explorer</li>
-                    <li>✗ Reports (PDF/CSV)</li>
-                    <li>✗ Scheduled reports</li>
-                  </ul>
-                </div>
-                <Button
-                  variant="primary"
-                  size="lg"
-                  className="w-full"
-                  onClick={() => (window.location.href = "/settings/billing")}
-                >
-                  Upgrade to Pro
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <p className="text-sm text-[var(--color-text-secondary)]">
-                  You are on the <strong>{workspace.plan_tier}</strong> plan. Manage your
-                  subscription below.
-                </p>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="w-full"
-                  onClick={() => (window.location.href = "/settings/billing")}
-                >
-                  Manage Subscription
-                </Button>
+            <div className="p-4 border border-[var(--color-border)] rounded-lg mb-4">
+              <h3 className="font-medium text-[var(--color-text-primary)] mb-2">
+                {PLAN_CATALOG[workspace.plan_tier].name} Plan —{" "}
+                {PLAN_CATALOG[workspace.plan_tier].priceUsdDisplay}
+              </h3>
+              <ul className="space-y-1 text-sm text-[var(--color-text-secondary)]">
+                <li>
+                  ✓ Up to {PLAN_CATALOG[workspace.plan_tier].brandLimit} brand
+                  {PLAN_CATALOG[workspace.plan_tier].brandLimit === 1 ? "" : "s"}
+                </li>
+                <li>✓ Up to {PLAN_CATALOG[workspace.plan_tier].promptLimit} prompts</li>
+                <li>
+                  ✓{" "}
+                  {PLAN_CATALOG[workspace.plan_tier].checkFrequency === "on-demand"
+                    ? "3 lifetime on-demand checks"
+                    : `${PLAN_CATALOG[workspace.plan_tier].checkFrequency} automated checks`}
+                </li>
+              </ul>
+            </div>
+
+            {isOwner && (
+              <div className="space-y-2">
+                {PAID_PLAN_TIER_IDS.filter((tier) => tier !== workspace.plan_tier).map((tier) => (
+                  <Button
+                    key={tier}
+                    variant={workspace.plan_tier === "free" ? "primary" : "outline"}
+                    size="lg"
+                    className="w-full"
+                    disabled={billingBusy}
+                    onClick={() =>
+                      workspace.plan_tier === "free" || !subscription?.razorpay_subscription_id
+                        ? handleUpgrade(tier)
+                        : handleChangePlan(tier)
+                    }
+                  >
+                    {workspace.plan_tier === "free" ? "Upgrade" : "Switch"} to{" "}
+                    {PLAN_CATALOG[tier].name} ({PLAN_CATALOG[tier].priceUsdDisplay})
+                  </Button>
+                ))}
+                {workspace.plan_tier !== "free" && subscription?.razorpay_subscription_id && (
+                  <Button
+                    variant="destructive"
+                    size="lg"
+                    className="w-full"
+                    disabled={billingBusy || subscription.cancel_at_cycle_end}
+                    onClick={handleCancel}
+                  >
+                    {subscription.cancel_at_cycle_end
+                      ? "Cancellation scheduled"
+                      : "Cancel Subscription"}
+                  </Button>
+                )}
               </div>
             )}
           </div>
 
           <div className="p-4 bg-[var(--color-surface-1)] rounded-lg">
             <h3 className="font-medium text-[var(--color-text-primary)] mb-3">Usage This Period</h3>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="p-3 bg-[var(--color-surface-0)] rounded-lg">
                 <p className="text-sm text-[var(--color-text-tertiary)]">Brands</p>
                 <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
-                  1 / {workspace.plan_tier === "free" ? 1 : "∞"}
+                  {usage.brandCount} / {usage.brandLimit}
                 </p>
               </div>
               <div className="p-3 bg-[var(--color-surface-0)] rounded-lg">
-                <p className="text-sm text-[var(--color-text-tertiary)]">Prompts</p>
+                <p className="text-sm text-[var(--color-text-tertiary)]">Prompts (this brand)</p>
                 <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
-                  {prompts.length} / {workspace.plan_tier === "free" ? 5 : "∞"}
-                </p>
-              </div>
-              <div className="p-3 bg-[var(--color-surface-0)] rounded-lg">
-                <p className="text-sm text-[var(--color-text-tertiary)]">Competitors</p>
-                <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
-                  {competitors.length} / {workspace.plan_tier === "free" ? 0 : "∞"}
+                  {usage.promptCount} / {usage.promptLimit}
                 </p>
               </div>
             </div>
