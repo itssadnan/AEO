@@ -56,7 +56,7 @@ The fix, when a module needs to expose something to a Client Component: put the 
 
 - TypeScript `strict: true`. No `any` without an inline comment explaining why it's unavoidable.
 - ESLint + Prettier enforced; a GitHub Action runs lint + typecheck + tests on every push. Keep this one workflow file — no heavyweight CI pipeline at this stage.
-- All external input — API request bodies, Stripe webhook payloads, and AI-model JSON output — is validated with a `zod` schema before use. This is both a code-quality rule and a security rule (Section 5).
+- All external input — API request bodies, Razorpay webhook payloads, and AI-model JSON output — is validated with a `zod` schema before use. This is both a code-quality rule and a security rule (Section 5).
 - Naming: kebab-case filenames, PascalCase components/types, camelCase functions/variables.
 - Every module folder's public interface is documented by its `progress/modules/<id>-*.md` file, not by a second, duplicate README inside the code folder — one source of truth per module.
 
@@ -129,7 +129,7 @@ These are non-negotiable, restated from the spec's Section 8 as enforceable rule
 
 1. **Row Level Security** on every table, scoped to workspace membership, with a test proving cross-tenant access is denied — not just filtered in application code.
 2. **Secrets** live only in the hosting platform's encrypted env store. Server-only keys are never prefixed `NEXT_PUBLIC_`; that prefix is reserved exclusively for values safe to ship to the browser.
-3. **Webhook verification**: every Stripe webhook's signature is checked (constant-time compare) before the payload is trusted.
+3. **Webhook verification**: every Razorpay webhook's signature is checked (HMAC-SHA256, constant-time compare) before the payload is trusted.
 4. **Public endpoints** (the free-check tool, and only that, at MVP) are rate-limited by IP and protected by a CAPTCHA/honeypot.
 5. **Untrusted content**: AI-generated answer text and any user-entered text are output-encoded before rendering, never interpolated into a prompt as an instruction, never rendered via `dangerouslySetInnerHTML`.
 6. **Dependency hygiene**: Dependabot enabled from the first commit.
