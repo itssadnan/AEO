@@ -847,7 +847,24 @@
         "app/src/app/(dashboard)/reports/loading.tsx",
         "app/src/app/(dashboard)/settings/loading.tsx",
         "app/src/app/(dashboard)/help/page.tsx",
-        "app/src/app/(dashboard)/help/loading.tsx"
+        "app/src/app/(dashboard)/help/loading.tsx",
+        "app/src/app/page.tsx",
+        "app/src/app/(auth)/layout.tsx",
+        "app/src/app/(auth)/sign-in/page.tsx",
+        "app/src/app/(auth)/sign-up/page.tsx",
+        "app/src/app/brands/new/page.tsx",
+        "app/src/app/brands/new/brand-form.tsx",
+        "app/src/app/admin/page.tsx",
+        "app/src/app/admin/loading.tsx",
+        "app/src/app/admin/plan-tier-section.tsx",
+        "app/src/app/admin/quota-section.tsx",
+        "app/src/app/admin/key-health-section.tsx",
+        "app/src/app/admin/failover-mode-section.tsx",
+        "app/src/app/admin/error-log-section.tsx",
+        "app/src/app/admin/churn-signal-section.tsx",
+        "app/src/app/admin/ai-task-configs-section.tsx",
+        "app/src/components/ui/input.tsx",
+        "app/src/components/ui/badge.tsx"
       ],
       "acceptanceCriteria": [
         {
@@ -882,7 +899,7 @@
       "cachingNotes": "Use Next.js data cache with tag-based revalidation, invalidated when a new check result lands for that brand — avoids recomputing/refetching on every page view between check cycles. Implemented in app/src/modules/dashboard/cache.ts with revalidateBrandCache helper (cross-module gap flagged: no invalidation trigger exists yet in scoring-worker or extraction-worker, to be wired when those modules ship the revalidation call).",
       "securityNotes": "CSRF protection on forms; all AI-sourced text (answers, explanations) rendered via safe text components, never dangerouslySetInnerHTML — it is untrusted third-party content. Every component uses Tailwind classes backed by @theme inline CSS variables from globals.css; no hardcoded hex/px values anywhere.",
       "lastUpdated": "2026-09-01",
-      "lastUpdatedBy": "Claude (landed a prepared 27-file bundle spanning 5.6/5.9/5.10, independently re-verified, committed, pushed, confirmed CI green + Vercel READY)",
+      "lastUpdatedBy": "Claude (restyled every remaining non-design-system UI surface — auth pages, root landing page, brand creation, and the full admin console — onto the Module 5.6 token/component system; committed, pushed, confirmed CI green + Vercel READY)",
       "decisionsLog": [
         {
           "date": "2026-07-23",
@@ -919,6 +936,10 @@
         {
           "date": "2026-09-01",
           "text": "Landed a bundle of the above changes (27 files total spanning 5.6/5.9/5.10) prepared in an earlier session, extracted into app/ and independently re-verified before committing rather than trusting the bundle's \"already verified\" claim: tsc --noEmit genuinely clean; prettier --check was NOT actually clean as claimed -- 10 of the bundle's files had real formatting deviations (missing trailing newline, unwrapped long lines/ternaries) and needed `prettier --write`, fixed before commit; eslint clean on every touched directory; 148/148 unit tests passing (all pre-existing tests, none broken by the reformatting). Also fixed the recurring sandbox git-lock issue already documented in this file's and 0.0/5.4's prior entries, and a stale absolute session path in .git/ssh_config's IdentityFile/core.sshCommand (same class of fix, new sandbox session). Committed c9bfd6d, pushed to origin/main, confirmed GitHub Actions' lint-typecheck-test conclusion 'success' via the API (not just the HTML summary), and Vercel production deployment dpl_V9BM8PT3HMcH2yQbpYktiYU4DYxM for c9bfd6d is READY."
+        },
+        {
+          "date": "2026-09-01",
+          "text": "User asked why the UI looked very dark with no proper margins/borders/clean colors and few styled boxes/buttons -- investigated and found the answer was literal, not subjective: the design system Module 5.6 built (near-black surfaces, violet accent, bordered cards, shared Button/Card/Skeleton components) only ever got applied to the (dashboard) route group. The root landing page (app/src/app/page.tsx), the entire (auth) route group (layout + sign-in + sign-up, still on hardcoded zinc/gray/black Tailwind and raw <input>/<button> markup from Module 0.0/5.1), brand creation (brands/new/{page,brand-form}.tsx), and all 9 files of the admin console (Module 5.10, built before this design system existed) were never migrated. Confirmed via an Explore subagent audit rather than guessing -- found exactly these 11 admin+brand files plus the 4 already-known auth/root files needed the pass, and explicitly confirmed (dashboard)/** and components/ui/* were already clean, avoiding redundant rework. Built two new shared primitives rather than one-off styling per file: components/ui/input.tsx (Input/Textarea/Select/Checkbox/Label/FieldHint/FieldError, all forwardRef) and components/ui/badge.tsx (tone-based Badge: positive/negative/warning/accent/neutral) -- the whole app now shares one form/badge vocabulary instead of each page inventing its own. Restyled all 15 files onto these plus the existing Button/token system; business logic (state, handlers, server action wiring, auth guards, data-fetching) preserved verbatim in every file -- only markup/classNames changed. Caught and fixed two issues before commit: (auth)/layout.tsx initially used a raw <a href=\"/\"> which eslint's @next/next/no-html-link-for-pages flagged as a real error, fixed by switching to next/link's <Link>; three checkbox+label rows in ai-task-configs-section.tsx initially reused the new Label component with a flex-row override, which risked a non-deterministic class conflict since this project's cn() utility is a plain string-join with no dedupe (confirmed via lib/utils.ts) -- replaced with plain <label> elements instead. Verified before commit: tsc --noEmit clean, prettier --check clean (5 files needed --write first), eslint clean except pre-existing unused-var warnings confirmed present in the original files too (not introduced by this pass), 148/148 tests passing. Committed 02c6688, pushed to origin/main, confirmed GitHub Actions lint-typecheck-test conclusion 'success' via the API and Vercel production deployment dpl_8BhrrhcFMRjYpGrs2n6KvUre2W8c for 02c6688 is READY. Not yet done: the user offered to share their normal-account email/password so pages could be tested while authenticated -- declined per the standing rule against ever entering a user's credentials into any field, even offered/pasted ones; asked the user to sign in themselves via a browser Claude has tool access to instead, so authenticated pages can be navigated without Claude ever touching credentials. That verification pass (loaders, admin features end-to-end) has not happened yet."
         }
       ],
       "blockers": [
