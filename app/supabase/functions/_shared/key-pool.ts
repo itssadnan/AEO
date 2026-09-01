@@ -13,6 +13,20 @@ export type AiProviderErrorCode =
 export class AiProviderError extends Error {
   readonly code: AiProviderErrorCode;
   readonly retryAfterSeconds: number;
+  /**
+   * Optional short diagnostic (HTTP status + a body snippet, never the API
+   * key itself) for error codes -- like "provider_unavailable" -- that
+   * otherwise collapse many distinct upstream failures (400 bad request,
+   * DNS failure, connection reset, 5xx) into one opaque string. Purely
+   * informational: `code` alone still drives all retry/failover branching
+   * in withKeyFailover, so adding this cannot change control flow. The
+   * caller (engine-worker) persists this into check_jobs.last_error_code
+   * instead of the bare code when present, so a stuck "provider_unavailable"
+   * job is diagnosable from the DB without needing edge function logs.
+   * Added 2026-09-01 while investigating a 100%-failure-rate NVIDIA NIM
+   * grounded_search test that gave no other clue why it was failing.
+   */
+  readonly detail?: string;
 
   // Plain constructor body, not TS parameter-property shorthand: Node's
   // built-in test runner (this project's chosen tool, see Module 0.0's
@@ -22,11 +36,12 @@ export class AiProviderError extends Error {
   // stripping. This file itself runs under Deno (not Node's test runner),
   // but its byte-for-byte twin in src/lib/ai-providers/key-pool.ts does --
   // keep both plain so the app-side copy stays test-runnable.
-  constructor(code: AiProviderErrorCode, retryAfterSeconds = 60) {
+  constructor(code: AiProviderErrorCode, retryAfterSeconds = 60, detail?: string) {
     super(code);
     this.name = "AiProviderError";
     this.code = code;
     this.retryAfterSeconds = retryAfterSeconds;
+    this.detail = detail;
   }
 }
 

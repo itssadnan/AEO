@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { formatNumber, formatPercent } from "@/lib/utils";
 import { CrawlAuditTrigger } from "./crawl-audit-trigger";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PendingChecksNotice } from "@/components/ui/pending-checks-notice";
 import type {
   BrandWithRelations,
   OverviewMetrics,
@@ -37,6 +38,7 @@ interface ReportsViewProps {
 export function ReportsView({
   brand,
   overview,
+  emptyState,
   competitors,
   workspace,
   crawlAudit,
@@ -217,6 +219,32 @@ export function ReportsView({
           </div>
         ) : reportData ? (
           <div className="space-y-6">
+            {/* BUG FIX (2026-09-01): reportData is a real object (with all
+                fields zeroed out) even when no visibility_snapshot has ever
+                been generated for this brand -- getReportData never returns
+                null just because the underlying data doesn't exist yet, only
+                when the brand itself doesn't exist. That meant a brand with
+                zero completed checks rendered "Visibility Score 0/100" etc.
+                looking identical to a real, bad score. Surface the honest
+                reason instead, using the same hasSnapshots/hasPendingChecks
+                signal Prompt Explorer and Overview also use. */}
+            {!emptyState.hasSnapshots && (
+              <PendingChecksNotice
+                hasPendingChecks={emptyState.hasPendingChecks}
+                mostRecentPendingErrorCode={emptyState.mostRecentPendingErrorCode}
+              />
+            )}
+            {!emptyState.hasSnapshots && !emptyState.hasPendingChecks && (
+              <div
+                className="p-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] text-sm text-[var(--color-text-secondary)]"
+                role="status"
+              >
+                No visibility check has completed for this brand yet. The numbers below are
+                placeholder zeros, not a real result — run a check from Prompt Explorer to populate
+                this report.
+              </div>
+            )}
+
             {/* Report summary */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Card className="p-4">

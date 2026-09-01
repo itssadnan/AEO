@@ -74,6 +74,25 @@ export interface EmptyStateConfig {
   hasCompetitors: boolean;
   hasSnapshots: boolean;
   planTier: PlanTier;
+  /**
+   * True when this brand has at least one check_jobs row currently
+   * queued/processing/retry -- i.e. a real check is in flight or waiting on
+   * a provider retry backoff, as opposed to nothing having ever been run.
+   * Added 2026-09-01 so pages showing zero-valued metrics (Reports,
+   * Overview, Prompt Explorer) can tell "genuinely untried" apart from
+   * "queued but blocked" instead of rendering the same bare zeros either
+   * way -- see this module's decisions log, 2026-09-01, for the user
+   * report this was built to fix ("not sure what can I do with that data").
+   */
+  hasPendingChecks: boolean;
+  /**
+   * The last_error_code of the most recent check_jobs row still in
+   * queued/processing/retry for this brand (e.g. "rate_limited"), so the UI
+   * can say *why* it's pending instead of just that it is. Null when there
+   * are no pending jobs, or a pending job hasn't failed an attempt yet
+   * (still on its first try).
+   */
+  mostRecentPendingErrorCode: string | null;
 }
 
 /**

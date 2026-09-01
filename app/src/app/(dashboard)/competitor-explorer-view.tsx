@@ -9,6 +9,7 @@ import { PlanBadge } from "@/components/ui/plan-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CalculationDisclosure } from "@/components/ui/calculation-disclosure";
 import { PageSkeleton } from "@/components/ui/skeleton";
+import { PendingChecksNotice } from "@/components/ui/pending-checks-notice";
 import { ExplanationEnginePanel } from "./explanation-engine-panel";
 import { formatRelativeTime, formatPercent, formatNumber } from "@/lib/utils";
 import type {
@@ -188,6 +189,17 @@ export function CompetitorExplorerView({
           </select>
         </div>
       </div>
+
+      {/* BUG FIX (2026-09-01): a paid-tier brand with competitors
+          configured but zero completed check_runs falls through to this
+          full render with an empty table -- same honest-zero-state fix as
+          Reports/Overview/Prompt Explorer. */}
+      {!hasData && (
+        <PendingChecksNotice
+          hasPendingChecks={emptyState.hasPendingChecks}
+          mostRecentPendingErrorCode={emptyState.mostRecentPendingErrorCode}
+        />
+      )}
 
       {/* Summary metrics */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

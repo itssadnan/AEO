@@ -15,6 +15,14 @@ export type AiProviderErrorCode =
 export class AiProviderError extends Error {
   readonly code: AiProviderErrorCode;
   readonly retryAfterSeconds: number;
+  /**
+   * Optional short diagnostic (HTTP status + a body snippet, never the API
+   * key itself) -- see the Deno twin (supabase/functions/_shared/key-pool.ts)
+   * for the full rationale. Kept in sync here purely for type parity between
+   * the two byte-for-byte copies; this file's own AiProviderError isn't on
+   * the path that talks to a real provider.
+   */
+  readonly detail?: string;
 
   // Plain constructor body, not TS parameter-property shorthand: Node's
   // built-in test runner (this project's chosen tool, see Module 0.0's
@@ -23,11 +31,12 @@ export class AiProviderError extends Error {
   // real code generation (an implicit `this.x = x`), not just annotation
   // stripping. `tsx` or a real `tsc` build tolerates it; the bare Node
   // runner used for `node --test` does not -- keep this constructor plain.
-  constructor(code: AiProviderErrorCode, retryAfterSeconds = 60) {
+  constructor(code: AiProviderErrorCode, retryAfterSeconds = 60, detail?: string) {
     super(code);
     this.name = "AiProviderError";
     this.code = code;
     this.retryAfterSeconds = retryAfterSeconds;
+    this.detail = detail;
   }
 }
 

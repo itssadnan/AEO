@@ -6,6 +6,7 @@ import { EngineBadge } from "@/components/ui/engine-badge";
 import { PlanBadge } from "@/components/ui/plan-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CalculationDisclosure } from "@/components/ui/calculation-disclosure";
+import { PendingChecksNotice } from "@/components/ui/pending-checks-notice";
 import { formatRelativeTime, formatPercent } from "@/lib/utils";
 import type {
   BrandWithRelations,
@@ -54,6 +55,11 @@ export function OverviewView({
           </div>
           <EngineBadge engine="gemini" />
         </div>
+
+        <PendingChecksNotice
+          hasPendingChecks={emptyState.hasPendingChecks}
+          mostRecentPendingErrorCode={emptyState.mostRecentPendingErrorCode}
+        />
 
         {/* Metrics cards - all zeros for empty state */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -107,6 +113,28 @@ export function OverviewView({
           </span>
         </div>
       </div>
+
+      {/* BUG FIX (2026-09-01): a paid-tier brand with zero completed checks
+          used to skip the free-tier-only empty-state branch above entirely
+          (it gates on emptyState.planTier === "free") and fall straight
+          into this "has data" render with every metric at a literal 0 --
+          indistinguishable from a real, bad score. Surface the honest
+          reason for any plan tier when there's genuinely no result yet. */}
+      {!hasData && (
+        <PendingChecksNotice
+          hasPendingChecks={emptyState.hasPendingChecks}
+          mostRecentPendingErrorCode={emptyState.mostRecentPendingErrorCode}
+        />
+      )}
+      {!hasData && !emptyState.hasPendingChecks && (
+        <div
+          className="p-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] text-sm text-[var(--color-text-secondary)]"
+          role="status"
+        >
+          No visibility check has completed for this brand yet. The metrics below are placeholder
+          zeros, not a real result — run a check from Prompt Explorer to populate this page.
+        </div>
+      )}
 
       {/* Key metrics row */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -199,7 +199,7 @@ export async function adminEnqueueCheckAction(
   workspaceId: string,
   brandId: string,
   promptId: string,
-): Promise<{ jobId: string } | { error: string }> {
+): Promise<{ jobId: string; existing?: boolean } | { error: string }> {
   const auth = await requireAdmin();
   if (auth) return auth;
 
@@ -232,7 +232,39 @@ export async function adminEnqueueCheckAction(
     .single();
 
   if (error) {
-    if (error.code === "23505") return { error: "This prompt already has a check waiting to run." };
+    // BUG FIX (2026-09-01): this used to return only a bare
+    // "This prompt already has a check waiting to run." string on the
+    // 23505 unique-violation (check_jobs_one_open_per_prompt_idx --
+    // migration 0007 -- allows at most one queued/processing/retry job per
+    // prompt at a time), with no way for the caller to see that job's real
+    // status. The admin "Run check now" panel had no jobId to poll, so it
+    // just dead-ended on that one line forever -- indistinguishable from a
+    // broken feature, even though a real job (possibly mid-retry-backoff
+    // for up to an hour, see retry_or_fail_check_job's 3600s clamp) was
+    // right there the whole time. Look that job up and hand its id back so
+    // the caller can poll it exactly like a freshly-created one instead.
+    if (error.code === "23505") {
+      const { data: existingJob, error: lookupError } = await supabase
+        .from("check_jobs")
+        .select("id")
+        .eq("prompt_id", promptId)
+        .in("status", ["queued", "processing", "retry"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!lookupError && existingJob) {
+        return { jobId: existingJob.id, existing: true };
+      }
+      // Race condition fallback: the conflicting job completed/failed (and
+      // so no longer matches the status filter above) between our insert
+      // attempt and this lookup. Vanishingly rare in practice, but fail
+      // honestly rather than claiming an existing job we can't find.
+      return {
+        error:
+          "This prompt already had a check running, but its current status couldn't be found. Try again in a moment.",
+      };
+    }
     return { error: error.message };
   }
   return { jobId: data.id };

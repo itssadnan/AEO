@@ -42,13 +42,42 @@ export async function runNvidiaNimPrompt(options: {
       } catch (error) {
         if (error instanceof DOMException && error.name === "TimeoutError")
           throw new AiProviderError("timeout");
-        throw new AiProviderError("provider_unavailable");
+        // A thrown fetch (as opposed to a resolved Response with a bad
+        // status) means the request never reached/returned from NVIDIA at
+        // all -- DNS failure, connection reset, TLS error, etc. Surface the
+        // real exception's name/message as detail so this doesn't collapse
+        // into the same opaque "provider_unavailable" as an actual 5xx.
+        const reason = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+        throw new AiProviderError(
+          "provider_unavailable",
+          undefined,
+          `fetch_failed: ${reason}`.slice(0, 300),
+        );
       }
       if (response.status === 429) throw new AiProviderError("rate_limited");
       if (response.status === 401 || response.status === 403)
         throw new AiProviderError("unauthorized");
-      if (response.status >= 500) throw new AiProviderError("provider_unavailable");
-      if (!response.ok) throw new AiProviderError("provider_unavailable");
+      if (response.status >= 500) {
+        const bodyText = await response.text().catch(() => "");
+        throw new AiProviderError(
+          "provider_unavailable",
+          undefined,
+          `http_${response.status}: ${bodyText}`.slice(0, 300),
+        );
+      }
+      if (!response.ok) {
+        // Anything else non-ok (most commonly a 400 -- bad model name,
+        // malformed body, unsupported param) was previously
+        // indistinguishable from a real outage. Capture the body NVIDIA
+        // sent back so a misconfigured model/request is diagnosable from
+        // check_jobs.last_error_code alone.
+        const bodyText = await response.text().catch(() => "");
+        throw new AiProviderError(
+          "provider_unavailable",
+          undefined,
+          `http_${response.status}: ${bodyText}`.slice(0, 300),
+        );
+      }
       let payload: unknown;
       try {
         payload = await response.json();

@@ -8,6 +8,7 @@ import { EngineBadge } from "@/components/ui/engine-badge";
 import { PlanBadge } from "@/components/ui/plan-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CalculationDisclosure } from "@/components/ui/calculation-disclosure";
+import { PendingChecksNotice } from "@/components/ui/pending-checks-notice";
 import { formatRelativeTime } from "@/lib/utils";
 import { PageSkeleton } from "@/components/ui/skeleton";
 import { adminEnqueueCheckAction, getCheckStatusAction } from "@/modules/admin/actions";
@@ -56,6 +57,12 @@ function RunCheckNowPanel({
   const [checkStatus, setCheckStatus] = useState<CheckStatusResult | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [panelError, setPanelError] = useState<string | null>(null);
+  // True when the job we're showing/polling is one that was already queued
+  // from a previous click, not one this click just created -- see the
+  // BUG FIX comment on adminEnqueueCheckAction (2026-09-01). Purely
+  // cosmetic (changes the note shown above the status block); polling
+  // behaves identically either way.
+  const [isExistingJob, setIsExistingJob] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -103,6 +110,7 @@ function RunCheckNowPanel({
     setIsBusy(true);
     setPanelError(null);
     setCheckStatus(null);
+    setIsExistingJob(false);
     const result = await adminEnqueueCheckAction(workspaceId, brandId, selectedPromptId);
     if ("error" in result) {
       setPanelError(result.error);
@@ -110,6 +118,7 @@ function RunCheckNowPanel({
       return;
     }
     setJobId(result.jobId);
+    setIsExistingJob(result.existing === true);
     pollStatus(result.jobId, 3000);
   }
 
@@ -150,6 +159,12 @@ function RunCheckNowPanel({
 
       {jobId && checkStatus && (
         <div className="p-4 bg-[var(--color-surface-1)] rounded-lg text-sm space-y-2">
+          {isExistingJob && (
+            <p className="text-[var(--color-text-tertiary)]">
+              A check for this prompt was already queued from an earlier click — showing its status
+              below instead of starting a duplicate.
+            </p>
+          )}
           <p className="text-[var(--color-text-secondary)]">
             Job status: <span className="font-mono">{checkStatus.status}</span>
             {checkStatus.lastErrorCode ? ` (${checkStatus.lastErrorCode})` : ""}
@@ -353,6 +368,20 @@ export function PromptExplorerView({
 
       {isAdmin && prompts.length > 0 && (
         <RunCheckNowPanel workspaceId={workspace.id} brandId={brand.id} prompts={prompts} />
+      )}
+
+      {/* BUG FIX (2026-09-01): a paid-tier brand with prompts configured
+          but zero completed check_runs reaches this full table render (the
+          free-tier-only empty state above only gates on
+          emptyState.planTier === "free"), and the table's own emptyMessage
+          ("No prompt data available. Run a visibility check to populate
+          this table.") doesn't say whether a check is already in flight.
+          Same honest-zero-state fix as Reports/Overview. */}
+      {!hasData && (
+        <PendingChecksNotice
+          hasPendingChecks={emptyState.hasPendingChecks}
+          mostRecentPendingErrorCode={emptyState.mostRecentPendingErrorCode}
+        />
       )}
 
       {/* Summary metrics */}

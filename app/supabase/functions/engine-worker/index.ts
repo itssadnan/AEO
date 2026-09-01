@@ -128,7 +128,12 @@ async function runProviderCall(options: {
   model: string;
   failoverMode: FailoverMode;
   onAttempt?: (slot: KeySlot) => void;
-}): Promise<{ text: string; citations: unknown[]; groundingMetadata: Record<string, unknown>; keySlot: KeySlot | undefined }> {
+}): Promise<{
+  text: string;
+  citations: unknown[];
+  groundingMetadata: Record<string, unknown>;
+  keySlot: KeySlot | undefined;
+}> {
   // Read the durably-persisted dead-key set from Postgres and thread it
   // into key selection. A prior version fetched this and then never used
   // it -- withKeyFailover kept its own disconnected in-memory set, so a
@@ -232,10 +237,19 @@ async function processJobWithStagger(job: Job, index: number): Promise<void> {
       p_key_slot: result.keySlot ?? null,
     });
 
-    log("info", "Job completed successfully", { jobId: job.job_id, provider: task.provider, keySlot: result.keySlot });
+    log("info", "Job completed successfully", {
+      jobId: job.job_id,
+      provider: task.provider,
+      keySlot: result.keySlot,
+    });
   } catch (error) {
-    const typed = error as { code?: string; retryAfterSeconds?: number };
-    const errorCode = typed.code ?? "worker_error";
+    const typed = error as { code?: string; retryAfterSeconds?: number; detail?: string };
+    // Prefer the richer diagnostic (real HTTP status + body snippet, or the
+    // underlying fetch exception) when the provider attached one -- see
+    // key-pool.ts's AiProviderError.detail doc-comment. Falls back to the
+    // bare code for every error path that doesn't set detail (rate_limited,
+    // unauthorized, not_configured, etc.), so this is additive only.
+    const errorCode = typed.detail ?? typed.code ?? "worker_error";
     const retryAfter = typed.retryAfterSeconds ?? 120;
 
     await rpc("retry_or_fail_check_job", {

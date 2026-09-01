@@ -108,7 +108,20 @@ export async function computeOverviewMetrics(
   engine: "gemini" | "nvidia-nim",
 ): Promise<OverviewMetrics> {
   const supabase = await getSupabase();
-  const provider = engine === "gemini" ? "google_gemini" : "nvidia_nim";
+  // BUG FIX (2026-09-01): this compared against "google_gemini", a string
+  // check_runs.provider never actually holds -- the worker always writes
+  // the literal "gemini" (task-model.ts's resolvedTaskModelSchema enum is
+  // z.enum(["gemini", "nvidia_nim"]); complete_check_job/
+  // retry_or_fail_check_job just pass that value straight through, see
+  // engine-worker/index.ts). Every .eq("provider", provider) filter using
+  // the old value silently matched zero rows for the Gemini engine
+  // selection on every dashboard page (Overview, Prompt Explorer,
+  // Competitor Explorer, Reports), even for a brand with real completed
+  // check_runs -- indistinguishable from "no data" without reading this
+  // far into the query. Found while tracing why Trusight2's dashboard
+  // showed nothing despite genuine (if rare, given the concurrent Gemini
+  // quota exhaustion) successful runs existing in the DB.
+  const provider = engine === "gemini" ? "gemini" : "nvidia_nim";
 
   // These five reads are all independent of one another (none depends on
   // another's result), so they're fetched in parallel rather than as a
@@ -207,7 +220,20 @@ export async function getPromptExplorerData(
   periodEnd?: string,
 ): Promise<PromptExplorerRow[]> {
   const supabase = await getSupabase();
-  const provider = engine === "gemini" ? "google_gemini" : "nvidia_nim";
+  // BUG FIX (2026-09-01): this compared against "google_gemini", a string
+  // check_runs.provider never actually holds -- the worker always writes
+  // the literal "gemini" (task-model.ts's resolvedTaskModelSchema enum is
+  // z.enum(["gemini", "nvidia_nim"]); complete_check_job/
+  // retry_or_fail_check_job just pass that value straight through, see
+  // engine-worker/index.ts). Every .eq("provider", provider) filter using
+  // the old value silently matched zero rows for the Gemini engine
+  // selection on every dashboard page (Overview, Prompt Explorer,
+  // Competitor Explorer, Reports), even for a brand with real completed
+  // check_runs -- indistinguishable from "no data" without reading this
+  // far into the query. Found while tracing why Trusight2's dashboard
+  // showed nothing despite genuine (if rare, given the concurrent Gemini
+  // quota exhaustion) successful runs existing in the DB.
+  const provider = engine === "gemini" ? "gemini" : "nvidia_nim";
 
   let runsQuery = supabase
     .from("check_runs")
@@ -290,7 +316,20 @@ export async function getCompetitorExplorerData(
   periodEnd?: string,
 ): Promise<CompetitorExplorerRow[]> {
   const supabase = await getSupabase();
-  const provider = engine === "gemini" ? "google_gemini" : "nvidia_nim";
+  // BUG FIX (2026-09-01): this compared against "google_gemini", a string
+  // check_runs.provider never actually holds -- the worker always writes
+  // the literal "gemini" (task-model.ts's resolvedTaskModelSchema enum is
+  // z.enum(["gemini", "nvidia_nim"]); complete_check_job/
+  // retry_or_fail_check_job just pass that value straight through, see
+  // engine-worker/index.ts). Every .eq("provider", provider) filter using
+  // the old value silently matched zero rows for the Gemini engine
+  // selection on every dashboard page (Overview, Prompt Explorer,
+  // Competitor Explorer, Reports), even for a brand with real completed
+  // check_runs -- indistinguishable from "no data" without reading this
+  // far into the query. Found while tracing why Trusight2's dashboard
+  // showed nothing despite genuine (if rare, given the concurrent Gemini
+  // quota exhaustion) successful runs existing in the DB.
+  const provider = engine === "gemini" ? "gemini" : "nvidia_nim";
 
   // Get competitors
   const { data: competitors } = await supabase
@@ -459,6 +498,8 @@ export async function getEmptyStateConfig(brandId: string | null): Promise<Empty
   let hasPrompts = false;
   let hasCompetitors = false;
   let hasSnapshots = false;
+  let hasPendingChecks = false;
+  let mostRecentPendingErrorCode: string | null = null;
   let planTier: PlanTier = "free";
 
   if (brandId) {
@@ -476,6 +517,7 @@ export async function getEmptyStateConfig(brandId: string | null): Promise<Empty
         { count: competitorCount },
         { data: snapshot },
         { data: workspace },
+        { data: pendingJobs },
       ] = await Promise.all([
         supabase
           .from("prompts")
@@ -492,14 +534,36 @@ export async function getEmptyStateConfig(brandId: string | null): Promise<Empty
           .limit(1)
           .single(),
         supabase.from("workspaces").select("plan_tier").eq("id", brand.workspace_id).single(),
+        // Distinguishes "genuinely untried" from "queued but blocked on a
+        // provider retry" for pages that would otherwise show the exact
+        // same bare zeros either way. Ordered by created_at so the most
+        // *recent* pending job's error wins over an older one if several
+        // prompts are all mid-retry at once.
+        supabase
+          .from("check_jobs")
+          .select("last_error_code, created_at")
+          .eq("brand_id", brandId)
+          .in("status", ["queued", "processing", "retry"])
+          .order("created_at", { ascending: false })
+          .limit(1),
       ]);
 
       hasPrompts = (promptCount ?? 0) > 0;
       hasCompetitors = (competitorCount ?? 0) > 0;
       hasSnapshots = !!snapshot;
+      hasPendingChecks = (pendingJobs?.length ?? 0) > 0;
+      mostRecentPendingErrorCode = pendingJobs?.[0]?.last_error_code ?? null;
       planTier = (workspace?.plan_tier as PlanTier) ?? "free";
     }
   }
 
-  return { hasBrands, hasPrompts, hasCompetitors, hasSnapshots, planTier };
+  return {
+    hasBrands,
+    hasPrompts,
+    hasCompetitors,
+    hasSnapshots,
+    hasPendingChecks,
+    mostRecentPendingErrorCode,
+    planTier,
+  };
 }
