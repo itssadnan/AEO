@@ -1,18 +1,31 @@
 "use client";
 
 import type { ProviderQuotaSnapshot, ProviderName, KeySlot } from "@/modules/admin";
-import { KNOWN_FREE_TIER_CAPS } from "@/modules/admin/quota-caps";
+import { KNOWN_FREE_TIER_CAPS, isNearCap } from "@/modules/admin/quota-caps";
 import { Badge } from "@/components/ui/badge";
 
 interface QuotaSectionProps {
   quotaSnapshot: ProviderQuotaSnapshot[];
   knownFreeTierCaps: typeof KNOWN_FREE_TIER_CAPS;
-  isNearCap: (count: number, cap: number | null) => boolean;
 }
 
 // Restyled onto the shared design system (Module 5.6) 2026-09-01 — all
 // data/logic below unchanged, only markup/classes touched.
-export function QuotaSection({ quotaSnapshot, knownFreeTierCaps, isNearCap }: QuotaSectionProps) {
+//
+// FIX (2026-09-01, later session): isNearCap used to be threaded in as a
+// prop from the server component admin/page.tsx. That's a real runtime
+// crash, not just a style nit -- React/Next forbids passing a plain
+// function from a Server Component to a Client Component as a prop
+// ("Functions cannot be passed directly to Client Components unless...
+// marked with 'use server'"), and it threw on every single request to
+// /admin, for every authorized admin, since this component was first
+// written (module 5.10, commit 9a2d118) -- never caught before because
+// nothing had actually loaded /admin as an authorized admin yet in this
+// sandbox (next build also can't run here to catch it at build time).
+// isNearCap is a pure, dependency-free function already living in the same
+// quota-caps module this file already imports KNOWN_FREE_TIER_CAPS from --
+// importing it directly here removes the prop (and the crash) entirely.
+export function QuotaSection({ quotaSnapshot, knownFreeTierCaps }: QuotaSectionProps) {
   const keySlots: (KeySlot | "unknown")[] = ["primary", "secondary", "tertiary", "unknown"];
 
   return (

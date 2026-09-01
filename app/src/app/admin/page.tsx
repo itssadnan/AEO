@@ -17,7 +17,7 @@ import {
   type KeySlot,
   type FailoverMode,
 } from "@/modules/admin";
-import { isNearCap, KNOWN_FREE_TIER_CAPS } from "@/modules/admin/quota-caps";
+import { KNOWN_FREE_TIER_CAPS } from "@/modules/admin/quota-caps";
 import { QuotaSection } from "./quota-section";
 import { KeyHealthSection } from "./key-health-section";
 import { FailoverModeSection } from "./failover-mode-section";
@@ -75,11 +75,7 @@ export default async function AdminPage() {
         <div className="space-y-8">
           <PlanTierSection workspaces={workspacesForOverride} />
 
-          <QuotaSection
-            quotaSnapshot={quotaSnapshot}
-            knownFreeTierCaps={KNOWN_FREE_TIER_CAPS}
-            isNearCap={isNearCap}
-          />
+          <QuotaSection quotaSnapshot={quotaSnapshot} knownFreeTierCaps={KNOWN_FREE_TIER_CAPS} />
 
           <KeyHealthSection keyHealth={keyHealth} />
 
