@@ -9,12 +9,14 @@ import { PlanBadge } from "@/components/ui/plan-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CalculationDisclosure } from "@/components/ui/calculation-disclosure";
 import { PageSkeleton } from "@/components/ui/skeleton";
+import { ExplanationEnginePanel } from "./explanation-engine-panel";
 import { formatRelativeTime, formatPercent, formatNumber } from "@/lib/utils";
 import type {
   BrandWithRelations,
   CompetitorExplorerRow,
   OverviewMetrics,
   EmptyStateConfig,
+  ExplanationEngineData,
   Competitor,
   Prompt,
 } from "@/modules/dashboard/types";
@@ -26,6 +28,7 @@ interface CompetitorExplorerViewProps {
   competitors: Competitor[];
   prompts: Prompt[];
   workspace: { id: string; name: string; plan_tier: "free" | "starter" | "growth" | "agency" };
+  explanation: ExplanationEngineData;
 }
 
 /**
@@ -37,6 +40,7 @@ export function CompetitorExplorerView({
   emptyState,
   competitors,
   workspace,
+  explanation,
 }: CompetitorExplorerViewProps) {
   const [engine, setEngine] = useState<"gemini" | "nvidia-nim">("gemini");
   const [competitorData, setCompetitorData] = useState<CompetitorExplorerRow[]>([]);
@@ -48,8 +52,9 @@ export function CompetitorExplorerView({
   // found 2026-09-01 to contradict this module's own acceptance criteria
   // (progress/modules/5.6-dashboard-frontend.md: "Share-of-Voice always
   // shown ... locked/upsell state" only for the separate Explanation
-  // Engine / Opportunity Finder panels, neither of which exists as a
-  // built feature in this file). The billing plan cards (settings-view.tsx)
+  // Engine / Opportunity Finder panels). That panel is now built --
+  // see <ExplanationEnginePanel> below, which owns its own real,
+  // DB-backed Free-plan lock. The billing plan cards (settings-view.tsx)
   // never listed competitor tracking as a paid-only feature either -- plan
   // tiers differ by usage limits (brands/prompts/check frequency), not by
   // walling off this page. Removed the plan-based lock entirely so every
@@ -116,6 +121,8 @@ export function CompetitorExplorerView({
             </a>
           }
         />
+
+        <ExplanationEnginePanel data={explanation} />
       </div>
     );
   }
@@ -312,6 +319,9 @@ export function CompetitorExplorerView({
           className="w-full"
         />
       </Card>
+
+      {/* Explanation Engine / Opportunity Finder — Module 5.5's backend, surfaced here */}
+      <ExplanationEnginePanel data={explanation} />
 
       {/* Calculation disclosure for competitor view */}
       <CalculationDisclosure

@@ -76,6 +76,14 @@ interface SettingsViewProps {
    * on hold until real Razorpay credentials AND every paid tier's Plan id
    * are set (see razorpay-client.ts). */
   isBillingFullyConfigured: boolean;
+  /** From ?tab= on the /settings URL -- lets a link elsewhere in the app
+   * (e.g. an "Upgrade" CTA) deep-link straight to a specific tab instead of
+   * always landing on "brand". Found 2026-09-01: settings/page.tsx already
+   * typed and accepted this searchParam but never read or forwarded it, so
+   * every such link silently landed on the Brand tab regardless of which
+   * tab it named -- fixed alongside adding the first real caller
+   * (Explanation Engine's "Upgrade" lock in competitor-explorer-view.tsx). */
+  initialTab?: "brand" | "competitors" | "prompts" | "billing";
 }
 
 /**
@@ -90,10 +98,11 @@ export function SettingsView({
   usage,
   isOwner,
   isBillingFullyConfigured,
+  initialTab,
 }: SettingsViewProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"brand" | "competitors" | "prompts" | "billing">(
-    "brand",
+    initialTab ?? "brand",
   );
   const [engine, setEngine] = useState<"gemini" | "nvidia-nim">("gemini");
   const [billingBusy, setBillingBusy] = useState(false);
@@ -415,7 +424,7 @@ export function SettingsView({
               isLocked={true}
               lockMessage="Free-plan prompts are a fixed, AI-suggested list. Upgrade to a paid plan to add and manage your own prompts."
               ctaLabel="Upgrade"
-              ctaHref="/settings/billing"
+              ctaHref="/settings?tab=billing"
             >
               <div />
             </LockedPanel>

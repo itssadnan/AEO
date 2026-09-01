@@ -69,6 +69,7 @@ export default async function SettingsPage({
 
   const params = await searchParams;
   const brandId = params.brandId ?? brands?.[0]?.id;
+  const initialTab = params.tab;
 
   if (!brandId) {
     return (
@@ -115,6 +116,7 @@ export default async function SettingsPage({
       usage={usage}
       isOwner={membership.role === "owner"}
       isBillingFullyConfigured={isBillingFullyConfigured()}
+      initialTab={initialTab}
     />
   );
 }

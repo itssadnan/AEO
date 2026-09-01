@@ -5,6 +5,7 @@ import {
   getBrandWithRelations,
   computeOverviewMetrics,
   getEmptyStateConfig,
+  getExplanationEngineData,
   mapPlanTier,
 } from "@/modules/dashboard/queries";
 
@@ -82,10 +83,11 @@ export default async function CompetitorsPage({
     );
   }
 
-  const [brandWithRelations, overview, emptyState] = await Promise.all([
+  const [brandWithRelations, overview, emptyState, explanation] = await Promise.all([
     getBrandWithRelations(brandId),
     computeOverviewMetrics(brandId, engine),
     getEmptyStateConfig(brandId),
+    getExplanationEngineData(brandId),
   ]);
 
   if (!brandWithRelations) {
@@ -100,6 +102,7 @@ export default async function CompetitorsPage({
       competitors={brandWithRelations.competitors}
       prompts={brandWithRelations.prompts}
       workspace={{ ...workspace, plan_tier: mapPlanTier(workspace.plan_tier) }}
+      explanation={explanation}
     />
   );
 }

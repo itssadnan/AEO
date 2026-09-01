@@ -75,3 +75,69 @@ export interface EmptyStateConfig {
   hasSnapshots: boolean;
   planTier: PlanTier;
 }
+
+/**
+ * Explanation Engine / Opportunity Finder (Module 5.5's backend, surfaced in
+ * the UI here for the first time — see progress/modules/5.6-dashboard-
+ * frontend.md's acceptance criterion: "Share-of-Voice always shown;
+ * Explanation Engine + Opportunity Finder panels render as a visible
+ * locked/upsell state for Free-plan workspaces (never silently omitted),
+ * full panels for paid").
+ *
+ * `status` collapses visibility_snapshots.status + explanation_skip_reason
+ * into one field the view can switch on directly:
+ * - "no_data": no snapshot exists yet for this brand (no check has completed).
+ * - "free_plan": real, DB-enforced gate (run_visibility_scoring_cycle sets
+ *   explanation_skip_reason='free_plan') -- unlike the fictional per-page
+ *   "Pro" locks removed elsewhere in this module, this one has actual
+ *   backing: Free-plan rows never even queue the NVIDIA NIM call.
+ * - "no_competitor_ahead": paid plan, but no competitor currently beats this
+ *   brand's mention count -- there is genuinely nothing to explain.
+ * - "pending": paid plan, a competitor is ahead, the numeric breakdown/gaps
+ *   below are already computed (pure SQL, synchronous), but the NVIDIA NIM
+ *   prose (explanationText/recommendedActions) hasn't completed yet.
+ * - "completed": everything below is populated.
+ * - "failed": the explanation worker exhausted its 5 attempts; numeric data
+ *   is still shown, prose never arrived.
+ */
+export type ExplanationEngineStatus =
+  "no_data" | "free_plan" | "no_competitor_ahead" | "pending" | "completed" | "failed";
+
+export interface CitationProfileEntry {
+  domainType: string;
+  pct: number;
+}
+
+export interface OpportunityGap {
+  domainType: string;
+  competitorCitationCount: number;
+  competitorPct: number;
+  brandCitationCount: number;
+}
+
+export interface RecommendedAction {
+  action: string;
+  confidence: "high" | "medium" | "low";
+  rationale: string;
+}
+
+export interface ExplanationEngineData {
+  status: ExplanationEngineStatus;
+  competitorName: string | null;
+  brandMentionCount: number | null;
+  competitorMentionCount: number | null;
+  /** Precomputed by SQL, rounded to 1 decimal -- see prompt.ts's doc-comment. */
+  citationRatio: number | null;
+  /** The brand's own citation-type mix (source_influence -- always computed, every plan tier). */
+  brandCitationProfile: CitationProfileEntry[];
+  /** The leading competitor's citation-type mix (explanation_breakdown.breakdown -- paid only). */
+  competitorCitationProfile: CitationProfileEntry[];
+  opportunityGaps: OpportunityGap[];
+  explanationText: string | null;
+  recommendedActions: RecommendedAction[];
+  attempts: number;
+  lastErrorCode: string | null;
+  explanationProvider: string | null;
+  explanationModel: string | null;
+  generatedAt: string | null;
+}

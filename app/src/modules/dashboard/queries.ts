@@ -9,6 +9,8 @@ import type {
   EmptyStateConfig,
 } from "./types";
 import type { VisibilitySnapshotRow } from "./database-extensions";
+import type { ExplanationEngineData } from "./types";
+import { shapeExplanationEngineData } from "./explanation-engine";
 
 // Type assertion helper for tables not yet in generated types
 const supabaseFrom = (
@@ -79,6 +81,26 @@ export async function getLatestVisibilitySnapshot(
     .single();
 
   return data as VisibilitySnapshotRow | null;
+}
+
+// Re-exported for the same reason as mapPlanTier above: the pure shaping
+// logic lives in explanation-engine.ts (no Supabase import, unit-testable in
+// a plain Node process); this wrapper is the one place that actually reads
+// the DB.
+export { shapeExplanationEngineData };
+
+/**
+ * Explanation Engine / Opportunity Finder data for Competitor Explorer's
+ * always-present-but-sometimes-locked panel (see
+ * progress/modules/5.6-dashboard-frontend.md's acceptance criterion, and
+ * ExplanationEngineData's doc-comment in types.ts for the full status
+ * model). getLatestVisibilitySnapshot already selects the whole row
+ * (explanation_breakdown/opportunity_gaps/recommended_actions included) --
+ * this was written for Module 5.5 but never had a caller until now.
+ */
+export async function getExplanationEngineData(brandId: string): Promise<ExplanationEngineData> {
+  const snapshot = await getLatestVisibilitySnapshot(brandId);
+  return shapeExplanationEngineData(snapshot);
 }
 
 export async function computeOverviewMetrics(
