@@ -141,11 +141,16 @@ export function Navigation({
 
       {/* Upgrade prompt -- only for workspaces actually still on the free
           plan; this used to show for every non-owner regardless of their
-          real plan tier (found during independent verification, 2026-08-14). */}
+          real plan tier (found during independent verification, 2026-08-14).
+          BUG FIX (2026-09-01): the copy itself was also stale on two counts
+          -- "Pro" isn't a real plan tier here (Free/Starter/Growth/Agency
+          are), and "competitor tracking" hasn't been paid-only since the
+          same-day fix in competitor-explorer-view.tsx. Reworded to name
+          what's actually still free-tier-limited. */}
       {userRole !== "owner" && brands.length > 0 && planTier === "free" && (
         <div className="p-4 border-t border-[var(--color-border)]">
           <p className="text-xs text-[var(--color-text-tertiary)] text-center">
-            Upgrade to Pro for competitor tracking & scheduled reports
+            Upgrade for more prompts, more brands, and automated recurring checks
           </p>
         </div>
       )}

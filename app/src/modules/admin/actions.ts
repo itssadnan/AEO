@@ -167,6 +167,15 @@ export async function setWorkspacePlanTierAction(
 export interface CheckStatusResult {
   status: "queued" | "processing" | "retry" | "completed" | "failed";
   lastErrorCode: string | null;
+  /**
+   * ISO timestamp of the job's next eligible attempt. Only meaningful when
+   * status is "retry" (a rate-limited/errored attempt that will be retried
+   * automatically by the background worker) -- lets the UI show a real ETA
+   * instead of the misleading "picking this up any second" framing that
+   * made a retry backoff of up to an hour (see retry_or_fail_check_job's
+   * 3600s clamp, migration 0007) look like a hang.
+   */
+  availableAt: string | null;
   run: {
     status: "success" | "error" | "rate_limited";
     rawAnswer: string | null;
@@ -240,15 +249,26 @@ export async function getCheckStatusAction(
 
   const { data: job, error: jobError } = await supabase
     .from("check_jobs")
-    .select("status, last_error_code, prompt_id, created_at")
+    .select("status, last_error_code, prompt_id, created_at, available_at")
     .eq("id", jobId)
     .maybeSingle();
 
   if (jobError) return { error: jobError.message };
   if (!job) return { error: "Job not found." };
 
+  // BUG FIX (2026-09-01): this used to only fetch the check_runs row when
+  // status was "completed"/"failed". retry_or_fail_check_job (migration
+  // 0007) inserts a check_runs row -- including a rate_limited one -- on
+  // EVERY failed attempt, whether or not the job still has retries left, so
+  // a job sitting in "retry" (which can be for up to an hour per attempt,
+  // clamped in that same function) already has a real, informative run row
+  // the whole time. Excluding "retry" here meant the admin-only "run check
+  // now" panel showed nothing but a bare "Job status: retry (rate_limited)"
+  // line for the entire backoff window instead of the friendly
+  // "this is a live quota limit, not a bug" explanation and the actual
+  // provider response -- looked identical to a hang.
   let run: CheckStatusResult["run"] = null;
-  if (job.status === "completed" || job.status === "failed") {
+  if (job.status === "completed" || job.status === "failed" || job.status === "retry") {
     const { data: runRow } = await supabase
       .from("check_runs")
       .select("status, raw_answer, citations, provider, model")
@@ -271,6 +291,7 @@ export async function getCheckStatusAction(
   return {
     status: job.status as CheckStatusResult["status"],
     lastErrorCode: job.last_error_code,
+    availableAt: job.available_at,
     run,
   };
 }

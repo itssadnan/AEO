@@ -64,6 +64,40 @@ function RunCheckNowPanel({
     };
   }, []);
 
+  // BUG FIX (2026-09-01): a "retry" job (rate-limited, will be retried
+  // automatically by the background worker -- see retry_or_fail_check_job,
+  // migration 0007) used to keep this button stuck on "Running..." and kept
+  // polling every 3s for up to an hour per attempt (the function's own
+  // backoff clamp), which is both wasteful and -- because isBusy never
+  // cleared -- looked exactly like the admin's earlier report of "it just
+  // said queued and no response". A rate-limited retry is real, useful
+  // information the moment it happens, not a hang: treat it as a terminal
+  // state for this click (re-enable the button, stop hammering the poll
+  // endpoint every 3s) while still slow-polling in the background so a
+  // later automatic retry that succeeds still updates the panel live.
+  function pollStatus(currentJobId: string, intervalMs: number) {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+      const status = await getCheckStatusAction(currentJobId);
+      if ("error" in status) {
+        setPanelError(status.error);
+        setIsBusy(false);
+        if (pollRef.current) clearInterval(pollRef.current);
+        return;
+      }
+      setCheckStatus(status);
+      if (status.status === "completed" || status.status === "failed") {
+        setIsBusy(false);
+        if (pollRef.current) clearInterval(pollRef.current);
+      } else if (status.status === "retry" && intervalMs !== 20000) {
+        // Slow down from the initial fast poll once we know this is a real
+        // backoff wait (could be up to an hour), not an imminent pickup.
+        setIsBusy(false);
+        pollStatus(currentJobId, 20000);
+      }
+    }, intervalMs);
+  }
+
   async function handleRunCheck() {
     if (!selectedPromptId) return;
     setIsBusy(true);
@@ -76,22 +110,7 @@ function RunCheckNowPanel({
       return;
     }
     setJobId(result.jobId);
-
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(async () => {
-      const status = await getCheckStatusAction(result.jobId);
-      if ("error" in status) {
-        setPanelError(status.error);
-        setIsBusy(false);
-        if (pollRef.current) clearInterval(pollRef.current);
-        return;
-      }
-      setCheckStatus(status);
-      if (status.status === "completed" || status.status === "failed") {
-        setIsBusy(false);
-        if (pollRef.current) clearInterval(pollRef.current);
-      }
-    }, 3000);
+    pollStatus(result.jobId, 3000);
   }
 
   return (
@@ -163,11 +182,22 @@ function RunCheckNowPanel({
               )}
             </>
           )}
-          {(checkStatus.status === "queued" ||
-            checkStatus.status === "processing" ||
-            checkStatus.status === "retry") && (
+          {(checkStatus.status === "queued" || checkStatus.status === "processing") && (
             <p className="text-[var(--color-text-tertiary)]">
               Waiting for the background worker to pick this up — polling every 3s…
+            </p>
+          )}
+          {checkStatus.status === "retry" && (
+            <p className="text-[var(--color-text-tertiary)]">
+              {checkStatus.run?.status === "rate_limited"
+                ? "Rate limited on this attempt (see above) — "
+                : "This attempt failed and "}
+              the background worker will retry automatically
+              {checkStatus.availableAt
+                ? ` around ${new Date(checkStatus.availableAt).toLocaleTimeString()}`
+                : " shortly"}
+              . You can close this or try another prompt in the meantime — this panel will keep
+              updating in the background.
             </p>
           )}
         </div>

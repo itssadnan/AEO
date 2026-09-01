@@ -4,7 +4,6 @@ import { Card } from "@/components/ui/card";
 import { MetricStat } from "@/components/ui/metric-stat";
 import { EngineBadge } from "@/components/ui/engine-badge";
 import { PlanBadge } from "@/components/ui/plan-badge";
-import { LockedPanel } from "@/components/ui/locked-panel";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CalculationDisclosure } from "@/components/ui/calculation-disclosure";
 import { formatRelativeTime, formatPercent } from "@/lib/utils";
@@ -38,9 +37,6 @@ export function OverviewView({
   workspace,
 }: OverviewViewProps) {
   const hasData = overview.visibilityScore > 0 || (overview.mentionCount ?? 0) > 0;
-
-  // Determine if competitor view is locked (free tier limit)
-  const isCompetitorLocked = workspace.plan_tier === "free" && competitors.length > 0;
 
   if (!hasData && emptyState.planTier === "free") {
     return (
@@ -249,24 +245,22 @@ export function OverviewView({
                   </p>
                 </div>
               </div>
-              {isCompetitorLocked ? (
-                <LockedPanel
-                  isLocked={true}
-                  lockMessage="Upgrade to Pro for competitor tracking"
-                  ctaLabel="Upgrade"
-                  ctaHref="/settings/billing"
+              {/* BUG FIX (2026-09-01): this used to lock the competitor
+                  count behind an "Upgrade to Pro" panel for any Free-tier
+                  workspace with competitors -- contradicting the same
+                  policy already corrected in competitor-explorer-view.tsx
+                  and reports-view.tsx (prior session, same date): "Pro"
+                  isn't a real plan tier here, and competitor tracking isn't
+                  paid-only anywhere else in the product. Found while
+                  checking whether that over-locking pattern persisted
+                  elsewhere, per the user's own request. */}
+              {competitors.length === 0 && (
+                <a
+                  href="/brands/new"
+                  className="text-sm font-medium text-[var(--color-accent)] hover:underline"
                 >
-                  <div />
-                </LockedPanel>
-              ) : (
-                competitors.length === 0 && (
-                  <a
-                    href="/brands/new"
-                    className="text-sm font-medium text-[var(--color-accent)] hover:underline"
-                  >
-                    Add competitors
-                  </a>
-                )
+                  Add competitors
+                </a>
               )}
             </div>
 

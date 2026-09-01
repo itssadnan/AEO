@@ -9,6 +9,7 @@ import { CalculationDisclosure } from "@/components/ui/calculation-disclosure";
 import { Button } from "@/components/ui/button";
 import { formatNumber, formatPercent } from "@/lib/utils";
 import { CrawlAuditTrigger } from "./crawl-audit-trigger";
+import { Skeleton } from "@/components/ui/skeleton";
 import type {
   BrandWithRelations,
   OverviewMetrics,
@@ -187,7 +188,34 @@ export function ReportsView({
           </div>
         )}
 
-        {reportData ? (
+        {isLoading && !reportData ? (
+          // BUG FIX (2026-09-01): this page never showed any loading
+          // indicator during its initial data fetch -- unlike Prompt
+          // Explorer/Competitor Explorer (which both return <PageSkeleton />
+          // while isLoading), Reports fell straight through to the "No
+          // report data available" empty state whenever reportData was
+          // still null, which is true both while genuinely loading AND once
+          // a fetch resolves with no data -- so a normal ~1-2s initial load
+          // looked identical to "you have no data", not "this is loading".
+          // Found live via a DOM/network trace while investigating the
+          // user's "no loader is shown" report.
+          <div className="space-y-6" aria-busy="true" aria-live="polite">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i} className="p-4 space-y-2">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-7 w-16" />
+                </Card>
+              ))}
+            </div>
+            <Card className="p-6 space-y-4">
+              <Skeleton className="h-5 w-40" />
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </Card>
+          </div>
+        ) : reportData ? (
           <div className="space-y-6">
             {/* Report summary */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -329,22 +357,27 @@ export function ReportsView({
           double-nested card). */}
       <CrawlAuditTrigger brandId={brand.id} websiteUrl={brand.website} initialAudit={crawlAudit} />
 
-      {/* Scheduled reports section (placeholder for future) */}
+      {/* Scheduled reports section -- placeholder for a genuinely
+          unbuilt feature (email-delivered scheduled reports). BUG FIX
+          (2026-09-01): this used to unconditionally show "This feature
+          requires a Pro or higher plan" / "Upgrade to Pro" regardless of
+          the viewer's real plan tier -- caught live when an admin's own
+          workspace was moved to Growth via the plan-tier override and this
+          panel still said to upgrade. Two real problems: (1) "Pro" isn't a
+          plan this product has (the real tiers are Free/Starter/Growth/
+          Agency -- leftover copy from an earlier draft), and (2) the copy
+          implied upgrading would unlock it, which is false -- there is no
+          backend for this at all yet (no cron, no email template, no DB
+          table), so no plan tier can unlock something that doesn't exist.
+          Honest placeholder instead: says it's not built, not "upgrade to
+          get it." */}
       <Card className="p-6">
         <h2 className="text-lg font-medium text-[var(--color-text-primary)] mb-4">
           Scheduled Reports
         </h2>
         <EmptyState
-          title="No scheduled reports"
-          description="Schedule automated PDF/CSV reports to be delivered via email. This feature requires a Pro or higher plan."
-          cta={
-            <a
-              href="/settings/billing"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--color-accent)] text-white rounded-lg font-medium hover:bg-[var(--color-accent-hover)] transition-colors"
-            >
-              Upgrade to Pro
-            </a>
-          }
+          title="Not available yet"
+          description="Scheduled, email-delivered PDF/CSV reports are planned but not built yet -- this isn't tied to your plan. In the meantime, every plan can view and export report data above on demand (export itself is an Agency-plan feature)."
         />
       </Card>
 

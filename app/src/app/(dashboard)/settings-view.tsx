@@ -181,8 +181,14 @@ export function SettingsView({
     }
   }
 
-  // Free tier lock check for competitor/prompt management
-  const isLocked = workspace.plan_tier === "free";
+  // Free-plan prompts are fixed/AI-suggested and immutable -- enforced for
+  // real by the prompt_immutable_on_free_plan DB trigger (migration 0005),
+  // so this lock is accurate. Competitor management has no such DB-level
+  // restriction anywhere (checked the competitors table's migration) --
+  // it used to be locked here too, contradicting the same policy already
+  // fixed in competitor-explorer-view.tsx/reports-view.tsx/overview-view.tsx
+  // (2026-09-01) -- so that lock was removed below rather than renamed.
+  const isPromptManagementLocked = workspace.plan_tier === "free";
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
@@ -332,96 +338,83 @@ export function SettingsView({
 
       {activeTab === "competitors" && (
         <>
-          {isLocked ? (
-            <LockedPanel
-              isLocked={true}
-              lockMessage="Competitor management is a Pro feature. Upgrade to add and track competitors."
-              ctaLabel="Upgrade to Pro"
-              ctaHref="/settings/billing"
-            >
-              <div />
-            </LockedPanel>
-          ) : (
-            <Card className="p-6 space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-medium text-[var(--color-text-primary)]">
-                  Competitors
-                </h2>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => alert("Add competitor modal not implemented yet")}
-                >
-                  Add Competitor
-                </Button>
-              </div>
+          <Card className="p-6 space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-medium text-[var(--color-text-primary)]">Competitors</h2>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => alert("Add competitor modal not implemented yet")}
+              >
+                Add Competitor
+              </Button>
+            </div>
 
-              {competitors.length === 0 ? (
-                <EmptyState
-                  title="No competitors added"
-                  description="Add competitors to track how they compare in AI visibility. Start with 3-5 direct competitors for best insights."
-                  cta={
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => alert("Add competitor modal not implemented yet")}
-                    >
-                      Add Your First Competitor
-                    </Button>
-                  }
-                />
-              ) : (
-                <div className="space-y-3">
-                  {competitors.map((competitor) => (
-                    <div
-                      key={competitor.id}
-                      className="flex items-center justify-between p-4 bg-[var(--color-surface-1)] rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-[var(--color-accent)]/10 flex items-center justify-center">
-                          <span className="text-sm font-medium text-[var(--color-accent)]">
-                            {competitor.name.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="font-medium text-[var(--color-text-primary)]">
-                            {competitor.name}
-                          </p>
-                        </div>
+            {competitors.length === 0 ? (
+              <EmptyState
+                title="No competitors added"
+                description="Add competitors to track how they compare in AI visibility. Start with 3-5 direct competitors for best insights."
+                cta={
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => alert("Add competitor modal not implemented yet")}
+                  >
+                    Add Your First Competitor
+                  </Button>
+                }
+              />
+            ) : (
+              <div className="space-y-3">
+                {competitors.map((competitor) => (
+                  <div
+                    key={competitor.id}
+                    className="flex items-center justify-between p-4 bg-[var(--color-surface-1)] rounded-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-[var(--color-accent)]/10 flex items-center justify-center">
+                        <span className="text-sm font-medium text-[var(--color-accent)]">
+                          {competitor.name.charAt(0).toUpperCase()}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <EngineBadge engine={engine} size="sm" />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => alert(`Edit ${competitor.name} not implemented yet`)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => alert(`Delete ${competitor.name} not implemented yet`)}
-                        >
-                          Delete
-                        </Button>
+                      <div>
+                        <p className="font-medium text-[var(--color-text-primary)]">
+                          {competitor.name}
+                        </p>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-          )}
+                    <div className="flex items-center gap-2">
+                      <EngineBadge engine={engine} size="sm" />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => alert(`Edit ${competitor.name} not implemented yet`)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => alert(`Delete ${competitor.name} not implemented yet`)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
         </>
       )}
 
       {activeTab === "prompts" && (
         <>
-          {isLocked ? (
+          {isPromptManagementLocked ? (
             <LockedPanel
               isLocked={true}
-              lockMessage="Custom prompt tracking is a Pro feature. Upgrade to add and manage your own prompts."
-              ctaLabel="Upgrade to Pro"
+              lockMessage="Free-plan prompts are a fixed, AI-suggested list. Upgrade to a paid plan to add and manage your own prompts."
+              ctaLabel="Upgrade"
               ctaHref="/settings/billing"
             >
               <div />
