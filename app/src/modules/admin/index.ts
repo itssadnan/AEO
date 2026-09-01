@@ -6,6 +6,8 @@ export {
   getChurnSignal,
   getAiTaskConfigs,
   upsertAiTaskConfig,
+  getWorkspacesForOverride,
+  setWorkspacePlanTier,
   isNearCap,
 } from "./queries";
 
@@ -20,7 +22,12 @@ export {
   clearDeadKeyAction,
   setFailoverModeAction,
   deleteWorkspaceOverrideAction,
+  getWorkspacesForOverrideAction,
+  setWorkspacePlanTierAction,
+  adminEnqueueCheckAction,
+  getCheckStatusAction,
 } from "./actions";
+export type { CheckStatusResult } from "./actions";
 
 export type {
   KeyHealthRow,
@@ -31,4 +38,5 @@ export type {
   ProviderName,
   KeySlot,
   FailoverMode,
+  WorkspaceOverrideRow,
 } from "./types";

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { PlanBadge } from "@/components/ui/plan-badge";
 
 interface HeaderProps {
   userEmail: string;
@@ -46,11 +47,12 @@ export function Header({ userEmail, workspaceName, planTier }: HeaderProps) {
     .toUpperCase()
     .slice(0, 2);
 
-  const planColors: Record<string, string> = {
-    free: "bg-[var(--color-warning-muted)] text-[var(--color-warning)]",
-    pro: "bg-[var(--color-positive-muted)] text-[var(--color-positive)]",
-    enterprise: "bg-[var(--color-accent-muted)] text-[var(--color-accent)]",
-  };
+  // Plan badge rendering used to be a second, ad-hoc `planColors` map here
+  // with only free/pro/enterprise keys — the exact same stale-alias bug
+  // already found and fixed once in modules/dashboard/plan-tier.ts (a real
+  // Starter/Growth/Agency workspace fell through to `undefined` styling).
+  // Reuse the one correct, tested implementation instead of maintaining a
+  // second copy. Found during independent verification, 2026-08-14.
 
   if (!mounted) {
     return (
@@ -59,9 +61,7 @@ export function Header({ userEmail, workspaceName, planTier }: HeaderProps) {
           <h1 className="text-lg font-semibold text-[var(--color-text-primary)] truncate max-w-xs">
             {workspaceName}
           </h1>
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${planColors[planTier]}`}>
-            {planTier.charAt(0).toUpperCase() + planTier.slice(1)}
-          </span>
+          <PlanBadge plan={planTier} />
         </div>
         <div className="flex items-center gap-4">
           <div className="w-8 h-8 rounded-full bg-[var(--color-accent-muted)] flex items-center justify-center text-sm font-medium text-[var(--color-accent)]">
@@ -78,9 +78,7 @@ export function Header({ userEmail, workspaceName, planTier }: HeaderProps) {
         <h1 className="text-lg font-semibold text-[var(--color-text-primary)] truncate max-w-xs">
           {workspaceName}
         </h1>
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${planColors[planTier]}`}>
-          {planTier.charAt(0).toUpperCase() + planTier.slice(1)}
-        </span>
+        <PlanBadge plan={planTier} />
       </div>
 
       <div className="flex items-center gap-4">

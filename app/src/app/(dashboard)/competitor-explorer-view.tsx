@@ -9,6 +9,7 @@ import { PlanBadge } from "@/components/ui/plan-badge";
 import { LockedPanel } from "@/components/ui/locked-panel";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CalculationDisclosure } from "@/components/ui/calculation-disclosure";
+import { PageSkeleton } from "@/components/ui/skeleton";
 import { formatRelativeTime, formatPercent, formatNumber } from "@/lib/utils";
 import type {
   BrandWithRelations,
@@ -143,36 +144,7 @@ export function CompetitorExplorerView({
   }
 
   if (isLoading) {
-    return (
-      <div className="mx-auto max-w-4xl space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">
-              {brand.name}
-            </h1>
-            <p className="text-[var(--color-text-secondary)] mt-1">
-              Workspace: {workspace.name} •{" "}
-              <PlanBadge plan={workspace.plan_tier as "free" | "starter" | "growth" | "agency"} />
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <EngineBadge engine={engine} size="sm" />
-            <select
-              value={engine}
-              onChange={(e) => setEngine(e.target.value as "gemini" | "nvidia-nim")}
-              className="px-3 py-1.5 bg-[var(--color-surface-0)] border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
-            >
-              <option value="gemini">Google Gemini</option>
-              <option value="nvidia-nim">NVIDIA NIM</option>
-            </select>
-          </div>
-        </div>
-        <Card className="p-12 text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-[var(--color-accent)] border-t-transparent mx-auto mb-4" />
-          <p className="text-[var(--color-text-secondary)]">Loading competitor data...</p>
-        </Card>
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   if (error) {

@@ -40,6 +40,18 @@ export interface ChurnCustomer {
   daysSinceLastSignIn: number | null;
 }
 
+// Reuses billing's PlanTierId rather than redefining the same union here --
+// modules/billing/plans.ts is the single source of truth for valid plan
+// tiers (see that file's header comment).
+import type { PlanTierId } from "@/modules/billing";
+
+export interface WorkspaceOverrideRow {
+  id: string;
+  name: string;
+  planTier: PlanTierId;
+  ownerEmail: string | null;
+}
+
 export interface AiTaskConfigRow {
   id: string;
   taskKey: string;

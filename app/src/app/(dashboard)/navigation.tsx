@@ -120,10 +120,29 @@ export function Navigation({
             </Link>
           );
         })}
+
+        {/* Not one of the 5 tracking views -- separated below a divider so it
+            doesn't read as "another view of my data". */}
+        <div className="pt-3 mt-3 border-t border-[var(--color-border)]">
+          <Link
+            href="/help"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+              pathname === "/help"
+                ? "bg-[var(--color-accent-muted)] text-[var(--color-accent)]"
+                : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text-primary)]",
+            )}
+          >
+            <span aria-hidden="true">❓</span>
+            How it works
+          </Link>
+        </div>
       </nav>
 
-      {/* Upgrade prompt for free tier */}
-      {userRole !== "owner" && brands.length > 0 && (
+      {/* Upgrade prompt -- only for workspaces actually still on the free
+          plan; this used to show for every non-owner regardless of their
+          real plan tier (found during independent verification, 2026-08-14). */}
+      {userRole !== "owner" && brands.length > 0 && planTier === "free" && (
         <div className="p-4 border-t border-[var(--color-border)]">
           <p className="text-xs text-[var(--color-text-tertiary)] text-center">
             Upgrade to Pro for competitor tracking & scheduled reports

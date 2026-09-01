@@ -7,7 +7,11 @@ import {
   getEmptyStateConfig,
   mapPlanTier,
 } from "@/modules/dashboard/queries";
-import { getSubscriptionForWorkspace, getUsageSnapshot } from "@/modules/billing";
+import {
+  getSubscriptionForWorkspace,
+  getUsageSnapshot,
+  isRazorpayConfigured,
+} from "@/modules/billing";
 
 export default async function SettingsPage({
   searchParams,
@@ -101,6 +105,7 @@ export default async function SettingsPage({
       subscription={subscription}
       usage={usage}
       isOwner={membership.role === "owner"}
+      isRazorpayConfigured={isRazorpayConfigured()}
     />
   );
 }

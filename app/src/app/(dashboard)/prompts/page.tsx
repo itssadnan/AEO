@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/db/supabase-server";
+import { requireAdmin } from "@/lib/security";
 import { PromptExplorerView } from "../prompt-explorer-view";
 import {
   getBrandWithRelations,
@@ -73,10 +74,11 @@ export default async function PromptsPage({
     );
   }
 
-  const [brandWithRelations, overview, emptyState] = await Promise.all([
+  const [brandWithRelations, overview, emptyState, adminCheck] = await Promise.all([
     getBrandWithRelations(brandId),
     computeOverviewMetrics(brandId, engine),
     getEmptyStateConfig(brandId),
+    requireAdmin(supabase),
   ]);
 
   if (!brandWithRelations) {
@@ -91,6 +93,7 @@ export default async function PromptsPage({
       competitors={brandWithRelations.competitors}
       prompts={brandWithRelations.prompts}
       workspace={{ ...workspace, plan_tier: mapPlanTier(workspace.plan_tier) }}
+      isAdmin={adminCheck === null}
     />
   );
 }

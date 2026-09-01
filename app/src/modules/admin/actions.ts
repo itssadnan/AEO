@@ -1,6 +1,7 @@
 "use server";
 
 import { requireAdmin } from "@/lib/security";
+import type { PlanTierId } from "@/modules/billing";
 import {
   getKeyHealth,
   getFailoverModes,
@@ -9,6 +10,8 @@ import {
   getChurnSignal,
   getAiTaskConfigs,
   upsertAiTaskConfig,
+  getWorkspacesForOverride,
+  setWorkspacePlanTier,
   type KeyHealthRow,
   type ProviderQuotaSnapshot,
   type ErrorLogEntry,
@@ -17,7 +20,10 @@ import {
   type ProviderName,
   type KeySlot,
   type FailoverMode,
+  type WorkspaceOverrideRow,
 } from "./queries";
+
+const VALID_PLAN_TIERS: PlanTierId[] = ["free", "starter", "growth", "agency"];
 
 export async function getKeyHealthAction(): Promise<KeyHealthRow[]> {
   const auth = await requireAdmin();
@@ -81,7 +87,7 @@ export async function upsertAiTaskConfigAction(input: {
 
 export async function clearDeadKeyAction(
   provider: ProviderName,
-  slot: KeySlot
+  slot: KeySlot,
 ): Promise<{ error: string } | { ok: true }> {
   const auth = await requireAdmin();
   if (auth) return auth;
@@ -108,7 +114,7 @@ export async function clearDeadKeyAction(
 
 export async function setFailoverModeAction(
   provider: ProviderName,
-  mode: FailoverMode
+  mode: FailoverMode,
 ): Promise<{ error: string } | { ok: true }> {
   const auth = await requireAdmin();
   if (auth) return auth;
@@ -132,9 +138,146 @@ export async function setFailoverModeAction(
   return { ok: true };
 }
 
+export async function getWorkspacesForOverrideAction(): Promise<WorkspaceOverrideRow[]> {
+  const auth = await requireAdmin();
+  if (auth) throw new Error(auth.error);
+  return getWorkspacesForOverride();
+}
+
+/**
+ * Admin-only testing override: force a workspace's plan tier without a real
+ * Razorpay payment. Lets the site admin verify every paid-tier feature
+ * (competitor tracking, custom prompts, reports, on-demand checks) works end
+ * to end while Razorpay stays unconfigured/on hold. See
+ * progress/modules/5.9-billing-and-subscription.md decisions log, 2026-08-14.
+ */
+export async function setWorkspacePlanTierAction(
+  workspaceId: string,
+  planTier: PlanTierId,
+): Promise<{ error: string } | { ok: true }> {
+  const auth = await requireAdmin();
+  if (auth) return auth;
+
+  if (!workspaceId) return { error: "Missing workspaceId" };
+  if (!VALID_PLAN_TIERS.includes(planTier)) return { error: "Invalid plan tier" };
+
+  return setWorkspacePlanTier(workspaceId, planTier);
+}
+
+export interface CheckStatusResult {
+  status: "queued" | "processing" | "retry" | "completed" | "failed";
+  lastErrorCode: string | null;
+  run: {
+    status: "success" | "error" | "rate_limited";
+    rawAnswer: string | null;
+    citations: unknown;
+    provider: string;
+    model: string;
+  } | null;
+}
+
+/**
+ * Admin-only: queue a check for any workspace/brand/prompt regardless of
+ * plan tier, bypassing enqueue_free_check()'s free-tier-only restriction
+ * (paid workspaces normally only get scheduled checks). Mirrors that RPC's
+ * own validation and dedup behavior at the application layer instead of
+ * modifying the customer-facing RPC. See migration 0024 for the
+ * 'admin_manual' source value this relies on, and
+ * progress/modules/5.9-billing-and-subscription.md decisions log,
+ * 2026-08-14 entry, for the full context.
+ */
+export async function adminEnqueueCheckAction(
+  workspaceId: string,
+  brandId: string,
+  promptId: string,
+): Promise<{ jobId: string } | { error: string }> {
+  const auth = await requireAdmin();
+  if (auth) return auth;
+
+  const { createSupabaseServiceRoleClient } = await import("@/lib/db");
+  const supabase = createSupabaseServiceRoleClient();
+
+  const { data: prompt, error: promptError } = await supabase
+    .from("prompts")
+    .select("id, is_active, brand_id, brands!inner(id, workspace_id)")
+    .eq("id", promptId)
+    .eq("brand_id", brandId)
+    .maybeSingle();
+
+  if (promptError) return { error: promptError.message };
+  if (!prompt || !prompt.is_active) return { error: "Prompt not found or inactive." };
+  const brand = Array.isArray(prompt.brands) ? prompt.brands[0] : prompt.brands;
+  if (!brand || brand.workspace_id !== workspaceId) {
+    return { error: "Prompt does not belong to that workspace/brand." };
+  }
+
+  const { data, error } = await supabase
+    .from("check_jobs")
+    .insert({
+      workspace_id: workspaceId,
+      brand_id: brandId,
+      prompt_id: promptId,
+      source: "admin_manual",
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") return { error: "This prompt already has a check waiting to run." };
+    return { error: error.message };
+  }
+  return { jobId: data.id };
+}
+
+export async function getCheckStatusAction(
+  jobId: string,
+): Promise<CheckStatusResult | { error: string }> {
+  const auth = await requireAdmin();
+  if (auth) return auth;
+
+  const { createSupabaseServiceRoleClient } = await import("@/lib/db");
+  const supabase = createSupabaseServiceRoleClient();
+
+  const { data: job, error: jobError } = await supabase
+    .from("check_jobs")
+    .select("status, last_error_code, prompt_id, created_at")
+    .eq("id", jobId)
+    .maybeSingle();
+
+  if (jobError) return { error: jobError.message };
+  if (!job) return { error: "Job not found." };
+
+  let run: CheckStatusResult["run"] = null;
+  if (job.status === "completed" || job.status === "failed") {
+    const { data: runRow } = await supabase
+      .from("check_runs")
+      .select("status, raw_answer, citations, provider, model")
+      .eq("prompt_id", job.prompt_id)
+      .gte("checked_at", job.created_at)
+      .order("checked_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (runRow) {
+      run = {
+        status: runRow.status as "success" | "error" | "rate_limited",
+        rawAnswer: runRow.raw_answer,
+        citations: runRow.citations,
+        provider: runRow.provider,
+        model: runRow.model,
+      };
+    }
+  }
+
+  return {
+    status: job.status as CheckStatusResult["status"],
+    lastErrorCode: job.last_error_code,
+    run,
+  };
+}
+
 export async function deleteWorkspaceOverrideAction(
   taskKey: string,
-  workspaceId: string
+  workspaceId: string,
 ): Promise<{ error: string } | { ok: true }> {
   const auth = await requireAdmin();
   if (auth) return auth;

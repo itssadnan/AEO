@@ -11,7 +11,7 @@ export function ChurnSignalSection({ churnSignal }: ChurnSignalSectionProps) {
     <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <h2 className="text-xl font-semibold text-gray-900 mb-4">Churn Signal (Inactive 14+ Days)</h2>
       <p className="text-sm text-gray-500 mb-6">
-        Workspaces whose owners have not signed in for 14+ days. Based on Supabase Auth's
+        Workspaces whose owners have not signed in for 14+ days. Based on Supabase Auth&apos;s
         <code className="font-mono text-xs bg-gray-100 px-1 rounded">last_sign_in_at</code>.
       </p>
 
@@ -39,9 +39,7 @@ export function ChurnSignalSection({ churnSignal }: ChurnSignalSectionProps) {
                 <td className="px-4 py-3 text-sm font-medium text-gray-900">
                   {customer.workspaceName}
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-900 capitalize">
-                  {customer.planTier}
-                </td>
+                <td className="px-4 py-3 text-sm text-gray-900 capitalize">{customer.planTier}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">
                   {customer.lastSignInAt
                     ? new Date(customer.lastSignInAt).toLocaleString()

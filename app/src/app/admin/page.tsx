@@ -7,6 +7,7 @@ import {
   getErrorLog,
   getChurnSignal,
   getAiTaskConfigs,
+  getWorkspacesForOverride,
   type KeyHealthRow,
   type ProviderQuotaSnapshot,
   type ErrorLogEntry,
@@ -23,6 +24,7 @@ import { FailoverModeSection } from "./failover-mode-section";
 import { ErrorLogSection } from "./error-log-section";
 import { ChurnSignalSection } from "./churn-signal-section";
 import { AiTaskConfigsSection } from "./ai-task-configs-section";
+import { PlanTierSection } from "./plan-tier-section";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +48,7 @@ export default async function AdminPage() {
     errorLog,
     churnSignal,
     aiTaskConfigs,
+    workspacesForOverride,
   ] = await Promise.all([
     getKeyHealth(),
     getFailoverModes(),
@@ -53,6 +56,7 @@ export default async function AdminPage() {
     getErrorLog(50),
     getChurnSignal(14),
     getAiTaskConfigs(),
+    getWorkspacesForOverride(),
   ]);
 
   return (
@@ -66,6 +70,8 @@ export default async function AdminPage() {
         </div>
 
         <div className="space-y-8">
+          <PlanTierSection workspaces={workspacesForOverride} />
+
           <QuotaSection
             quotaSnapshot={quotaSnapshot}
             knownFreeTierCaps={KNOWN_FREE_TIER_CAPS}

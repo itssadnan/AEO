@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import * as React from "react";
 import { Card } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
@@ -9,6 +9,9 @@ import { PlanBadge } from "@/components/ui/plan-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CalculationDisclosure } from "@/components/ui/calculation-disclosure";
 import { formatRelativeTime } from "@/lib/utils";
+import { PageSkeleton } from "@/components/ui/skeleton";
+import { adminEnqueueCheckAction, getCheckStatusAction } from "@/modules/admin/actions";
+import type { CheckStatusResult } from "@/modules/admin";
 import type {
   BrandWithRelations,
   PromptExplorerRow,
@@ -25,6 +28,152 @@ interface PromptExplorerViewProps {
   competitors: Competitor[];
   prompts: Prompt[];
   workspace: { id: string; name: string; plan_tier: "free" | "starter" | "growth" | "agency" };
+  /** True only for the site admin (requireAdmin() allowlist) — see prompts/page.tsx. */
+  isAdmin?: boolean;
+}
+
+/**
+ * Admin-only "run a real check now and watch the AI's actual response come
+ * back" panel — the direct answer to "I don't see any feature page which
+ * checks with the LLM and gives a response". Uses adminEnqueueCheckAction
+ * (works on any plan tier, unlike the customer-facing free-check flow) and
+ * polls getCheckStatusAction until the background worker finishes the job.
+ * Shows the real result honestly, including a rate-limited/error outcome --
+ * as of 2026-08-14, most live Gemini grounded-search checks come back
+ * rate_limited because of Google's Search-grounding quota, not this code.
+ */
+function RunCheckNowPanel({
+  workspaceId,
+  brandId,
+  prompts,
+}: {
+  workspaceId: string;
+  brandId: string;
+  prompts: Prompt[];
+}) {
+  const [selectedPromptId, setSelectedPromptId] = useState(prompts[0]?.id ?? "");
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [checkStatus, setCheckStatus] = useState<CheckStatusResult | null>(null);
+  const [isBusy, setIsBusy] = useState(false);
+  const [panelError, setPanelError] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
+
+  async function handleRunCheck() {
+    if (!selectedPromptId) return;
+    setIsBusy(true);
+    setPanelError(null);
+    setCheckStatus(null);
+    const result = await adminEnqueueCheckAction(workspaceId, brandId, selectedPromptId);
+    if ("error" in result) {
+      setPanelError(result.error);
+      setIsBusy(false);
+      return;
+    }
+    setJobId(result.jobId);
+
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+      const status = await getCheckStatusAction(result.jobId);
+      if ("error" in status) {
+        setPanelError(status.error);
+        setIsBusy(false);
+        if (pollRef.current) clearInterval(pollRef.current);
+        return;
+      }
+      setCheckStatus(status);
+      if (status.status === "completed" || status.status === "failed") {
+        setIsBusy(false);
+        if (pollRef.current) clearInterval(pollRef.current);
+      }
+    }, 3000);
+  }
+
+  return (
+    <Card className="p-6 border-2 border-dashed border-[var(--color-accent)]/40">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-medium text-[var(--color-text-primary)]">
+          Run a check now (Admin)
+        </h2>
+        <span className="text-xs text-[var(--color-text-tertiary)]">
+          Queues a real Gemini grounded-search call for the selected prompt
+        </span>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <select
+          value={selectedPromptId}
+          onChange={(e) => setSelectedPromptId(e.target.value)}
+          disabled={isBusy}
+          className="flex-1 px-3 py-2 bg-[var(--color-surface-0)] border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-text-primary)] disabled:opacity-50"
+        >
+          {prompts.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.text}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={handleRunCheck}
+          disabled={isBusy || !selectedPromptId}
+          className="px-4 py-2 bg-[var(--color-accent)] text-white rounded-lg font-medium hover:bg-[var(--color-accent-hover)] transition-colors disabled:opacity-50 whitespace-nowrap"
+        >
+          {isBusy ? "Running…" : "Run check now"}
+        </button>
+      </div>
+
+      {panelError && <p className="text-sm text-[var(--color-negative)] mb-2">{panelError}</p>}
+
+      {jobId && checkStatus && (
+        <div className="p-4 bg-[var(--color-surface-1)] rounded-lg text-sm space-y-2">
+          <p className="text-[var(--color-text-secondary)]">
+            Job status: <span className="font-mono">{checkStatus.status}</span>
+            {checkStatus.lastErrorCode ? ` (${checkStatus.lastErrorCode})` : ""}
+          </p>
+          {checkStatus.run && (
+            <>
+              <p className="text-[var(--color-text-secondary)]">
+                Run result:{" "}
+                <span
+                  className={`font-mono font-medium ${
+                    checkStatus.run.status === "success"
+                      ? "text-[var(--color-positive)]"
+                      : "text-[var(--color-negative)]"
+                  }`}
+                >
+                  {checkStatus.run.status}
+                </span>{" "}
+                ({checkStatus.run.provider} / {checkStatus.run.model})
+              </p>
+              {checkStatus.run.status === "rate_limited" && (
+                <p className="text-[var(--color-warning)]">
+                  Rate limited by the AI provider — this is a live quota limit, not a bug. See
+                  &quot;How it works&quot; for current model/quota details.
+                </p>
+              )}
+              {checkStatus.run.rawAnswer && (
+                <div className="mt-2 p-3 bg-[var(--color-surface-0)] rounded border border-[var(--color-border)] max-h-64 overflow-y-auto whitespace-pre-wrap text-[var(--color-text-primary)]">
+                  {checkStatus.run.rawAnswer}
+                </div>
+              )}
+            </>
+          )}
+          {(checkStatus.status === "queued" ||
+            checkStatus.status === "processing" ||
+            checkStatus.status === "retry") && (
+            <p className="text-[var(--color-text-tertiary)]">
+              Waiting for the background worker to pick this up — polling every 3s…
+            </p>
+          )}
+        </div>
+      )}
+    </Card>
+  );
 }
 
 /**
@@ -37,6 +186,7 @@ export function PromptExplorerView({
   competitors,
   prompts,
   workspace,
+  isAdmin = false,
 }: PromptExplorerViewProps) {
   const [engine, setEngine] = useState<"gemini" | "nvidia-nim">("gemini");
   const [promptData, setPromptData] = useState<PromptExplorerRow[]>([]);
@@ -93,6 +243,10 @@ export function PromptExplorerView({
           </div>
         </div>
 
+        {isAdmin && prompts.length > 0 && (
+          <RunCheckNowPanel workspaceId={workspace.id} brandId={brand.id} prompts={prompts} />
+        )}
+
         {/* Empty state guidance */}
         <EmptyState
           title="No prompt data yet"
@@ -111,36 +265,7 @@ export function PromptExplorerView({
   }
 
   if (isLoading) {
-    return (
-      <div className="mx-auto max-w-4xl space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">
-              {brand.name}
-            </h1>
-            <p className="text-[var(--color-text-secondary)] mt-1">
-              Workspace: {workspace.name} •{" "}
-              <PlanBadge plan={workspace.plan_tier as "free" | "starter" | "growth" | "agency"} />
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <EngineBadge engine={engine} size="sm" />
-            <select
-              value={engine}
-              onChange={(e) => setEngine(e.target.value as "gemini" | "nvidia-nim")}
-              className="px-3 py-1.5 bg-[var(--color-surface-0)] border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
-            >
-              <option value="gemini">Google Gemini</option>
-              <option value="nvidia-nim">NVIDIA NIM</option>
-            </select>
-          </div>
-        </div>
-        <Card className="p-12 text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-[var(--color-accent)] border-t-transparent mx-auto mb-4" />
-          <p className="text-[var(--color-text-secondary)]">Loading prompt data...</p>
-        </Card>
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   if (error) {
@@ -195,6 +320,10 @@ export function PromptExplorerView({
           </select>
         </div>
       </div>
+
+      {isAdmin && prompts.length > 0 && (
+        <RunCheckNowPanel workspaceId={workspace.id} brandId={brand.id} prompts={prompts} />
+      )}
 
       {/* Summary metrics */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

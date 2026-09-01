@@ -1,4 +1,5 @@
 import { createSupabaseServiceRoleClient } from "@/lib/db";
+import type { PlanTierId } from "@/modules/billing";
 import type {
   KeyHealthRow,
   ProviderQuotaSnapshot,
@@ -8,6 +9,7 @@ import type {
   ProviderName,
   KeySlot,
   FailoverMode,
+  WorkspaceOverrideRow,
 } from "./types";
 
 export type {
@@ -19,14 +21,11 @@ export type {
   ProviderName,
   KeySlot,
   FailoverMode,
+  WorkspaceOverrideRow,
 } from "./types";
 
 export { isNearCap } from "./quota-caps";
-
-const KNOWN_FREE_TIER_CAPS: Record<ProviderName, string> = {
-  gemini: "1,500 RPM / 1M TPM (Google AI Studio free tier, approximate)",
-  nvidia_nim: "60 RPM typical (NVIDIA NIM free tier, varies by model)",
-};
+import { getProviderCapNote } from "./quota-caps";
 
 async function getSupabase() {
   return createSupabaseServiceRoleClient();
@@ -114,7 +113,7 @@ export async function getQuotaSnapshot(): Promise<ProviderQuotaSnapshot[]> {
     result.push({
       provider,
       byKeySlot,
-      informationalCapNote: KNOWN_FREE_TIER_CAPS[provider],
+      informationalCapNote: getProviderCapNote(provider),
     });
   }
 
@@ -179,28 +178,89 @@ export async function getChurnSignal(inactiveDays = 14): Promise<ChurnCustomer[]
   if (userError) throw userError;
 
   const userMap = new Map(
-    (users.users ?? []).filter((u) => userIds.includes(u.id)).map((u) => [
-      u.id,
-      u.last_sign_in_at,
-    ])
+    (users.users ?? []).filter((u) => userIds.includes(u.id)).map((u) => [u.id, u.last_sign_in_at]),
   );
 
   const now = Date.now();
+  return (workspaces ?? [])
+    .map((w) => {
+      const member = (members ?? []).find((m) => m.workspace_id === w.id);
+      const lastSignInAt = member ? (userMap.get(member.user_id) ?? null) : null;
+      const daysSinceLastSignIn = lastSignInAt
+        ? Math.floor((now - new Date(lastSignInAt).getTime()) / (1000 * 60 * 60 * 24))
+        : null;
+
+      return {
+        workspaceId: w.id,
+        workspaceName: w.name,
+        planTier: w.plan_tier,
+        lastSignInAt,
+        daysSinceLastSignIn,
+      };
+    })
+    .filter((c) => c.daysSinceLastSignIn === null || c.daysSinceLastSignIn >= inactiveDays);
+}
+
+/**
+ * Lists every workspace with its current plan tier and owner email, for the
+ * admin-only "testing override" toggle (Settings/billing testing without a
+ * live Razorpay account -- see progress/modules/5.9-billing-and-subscription.md
+ * decisions log, 2026-08-14 entry). Reuses the same
+ * workspaces + workspace_members(role=owner) + auth.admin.listUsers() join
+ * pattern already used by getChurnSignal above, rather than inventing a new
+ * one.
+ */
+export async function getWorkspacesForOverride(): Promise<WorkspaceOverrideRow[]> {
+  const supabase = await getSupabase();
+
+  const { data: workspaces, error: wsError } = await supabase
+    .from("workspaces")
+    .select("id, name, plan_tier")
+    .order("created_at", { ascending: true });
+  if (wsError) throw wsError;
+
+  const workspaceIds = (workspaces ?? []).map((w) => w.id);
+  if (workspaceIds.length === 0) return [];
+
+  const { data: members, error: memError } = await supabase
+    .from("workspace_members")
+    .select("workspace_id, user_id")
+    .in("workspace_id", workspaceIds)
+    .eq("role", "owner");
+  if (memError) throw memError;
+
+  const userIds = [...new Set((members ?? []).map((m) => m.user_id))];
+  let emailMap = new Map<string, string | null>();
+  if (userIds.length > 0) {
+    const { data: users, error: userError } = await supabase.auth.admin.listUsers();
+    if (userError) throw userError;
+    emailMap = new Map(
+      (users.users ?? []).filter((u) => userIds.includes(u.id)).map((u) => [u.id, u.email ?? null]),
+    );
+  }
+
   return (workspaces ?? []).map((w) => {
     const member = (members ?? []).find((m) => m.workspace_id === w.id);
-    const lastSignInAt = member ? userMap.get(member.user_id) ?? null : null;
-    const daysSinceLastSignIn = lastSignInAt
-      ? Math.floor((now - new Date(lastSignInAt).getTime()) / (1000 * 60 * 60 * 24))
-      : null;
-
     return {
-      workspaceId: w.id,
-      workspaceName: w.name,
-      planTier: w.plan_tier,
-      lastSignInAt,
-      daysSinceLastSignIn,
+      id: w.id,
+      name: w.name,
+      planTier: w.plan_tier as PlanTierId,
+      ownerEmail: member ? (emailMap.get(member.user_id) ?? null) : null,
     };
-  }).filter((c) => c.daysSinceLastSignIn === null || c.daysSinceLastSignIn >= inactiveDays);
+  });
+}
+
+export async function setWorkspacePlanTier(
+  workspaceId: string,
+  planTier: PlanTierId,
+): Promise<{ error: string } | { ok: true }> {
+  const supabase = await getSupabase();
+  const { error } = await supabase
+    .from("workspaces")
+    .update({ plan_tier: planTier })
+    .eq("id", workspaceId);
+  if (error) return { error: error.message };
+  return { ok: true };
 }
 
 export async function getAiTaskConfigs(): Promise<AiTaskConfigRow[]> {
@@ -230,7 +290,7 @@ export async function getAiTaskConfigs(): Promise<AiTaskConfigRow[]> {
     id: row.id,
     taskKey: row.task_key,
     workspaceId: row.workspace_id,
-    workspaceName: row.workspace_id ? workspaceMap.get(row.workspace_id) ?? null : null,
+    workspaceName: row.workspace_id ? (workspaceMap.get(row.workspace_id) ?? null) : null,
     provider: row.provider as ProviderName,
     model: row.model,
     enabled: row.enabled,
@@ -277,14 +337,17 @@ export async function upsertAiTaskConfig(input: {
 
   const { data, error } = await supabase
     .from("ai_task_configs")
-    .upsert({
-      task_key: input.taskKey,
-      workspace_id: input.workspaceId,
-      provider: input.provider,
-      model: input.model,
-      enabled: input.enabled,
-      updated_by: input.updatedBy,
-    }, { onConflict: "task_key,workspace_id" })
+    .upsert(
+      {
+        task_key: input.taskKey,
+        workspace_id: input.workspaceId,
+        provider: input.provider,
+        model: input.model,
+        enabled: input.enabled,
+        updated_by: input.updatedBy,
+      },
+      { onConflict: "task_key,workspace_id" },
+    )
     .select("id, task_key, workspace_id, provider, model, enabled, updated_at, updated_by")
     .single();
 

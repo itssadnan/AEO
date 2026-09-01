@@ -17,12 +17,15 @@ export function QuotaSection({ quotaSnapshot, knownFreeTierCaps, isNearCap }: Qu
       <h2 className="text-xl font-semibold text-gray-900 mb-4">Quota Consumption (per key slot)</h2>
       <p className="text-sm text-gray-500 mb-6">
         Request counts for the last 1h and 24h, broken down by provider and key slot. Historical
-        rows before migration 0019 show as "unknown" slot — this is expected.
+        rows before migration 0019 show as &quot;unknown&quot; slot — this is expected.
       </p>
 
       <div className="space-y-6">
         {quotaSnapshot.map((provider) => (
-          <div key={provider.provider} className="border-t border-gray-100 pt-6 first:border-0 first:pt-0">
+          <div
+            key={provider.provider}
+            className="border-t border-gray-100 pt-6 first:border-0 first:pt-0"
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-gray-900 capitalize">
                 {provider.provider.replace("_", " ")}
@@ -51,11 +54,12 @@ export function QuotaSection({ quotaSnapshot, knownFreeTierCaps, isNearCap }: Qu
                 <tbody className="bg-white divide-y divide-gray-200">
                   {keySlots.map((slot) => {
                     const counts = provider.byKeySlot[slot];
-                    const capInfo = knownFreeTierCaps[
-                      provider.provider === "gemini"
-                        ? "gemini-3.5-flash-lite"
-                        : "nvidia_nim_default"
-                    ];
+                    const capInfo =
+                      knownFreeTierCaps[
+                        provider.provider === "gemini"
+                          ? "gemini-3.5-flash-lite"
+                          : "nvidia_nim_default"
+                      ];
                     const rpmCap = capInfo?.rpm ?? null;
                     const nearCap = isNearCap(counts.last1h, rpmCap);
 

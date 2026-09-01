@@ -40,7 +40,16 @@ import { runCrawlAudit } from "../../src/modules/crawl-audit/fetchers.ts";
 import { isAuditFresh } from "../../src/modules/crawl-audit/crawl-audit.ts";
 import { buildCrawlChecklist } from "../../src/modules/crawl-audit/checklist.ts";
 import type { CrawlAuditRow } from "../../src/modules/crawl-audit/types.ts";
-import { SsrfBlockedError } from "../../src/lib/security/ssrf-guard.ts";
+// Imported via the "@/lib/security" barrel — the exact same resolution path
+// fetchers.ts (the code under test) uses for assertPublicHostname. Importing
+// this class via a relative, .ts-suffixed path straight to ssrf-guard.ts (as
+// this file previously did) resolves to a referentially different, though
+// structurally identical, class under this project's tsx-based test runner,
+// so `assert.rejects(fn, SsrfBlockedError)` silently failed `instanceof` even
+// though the guard itself behaved correctly. Found during independent
+// verification, 2026-08-14 (see progress/modules/5.7-crawl-readiness-audit.md
+// decisions log).
+import { SsrfBlockedError } from "@/lib/security";
 
 /**
  * Minimal manual fetch stub — replaces vi.fn().mockResolvedValueOnce chains.

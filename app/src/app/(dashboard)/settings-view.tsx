@@ -72,6 +72,9 @@ interface SettingsViewProps {
   subscription: SubscriptionRow | null;
   usage: UsageSnapshot;
   isOwner: boolean;
+  /** Computed server-side from isRazorpayConfigured() -- payments stay on
+   * hold until real Razorpay credentials are set (see razorpay-client.ts). */
+  isRazorpayConfigured: boolean;
 }
 
 /**
@@ -85,6 +88,7 @@ export function SettingsView({
   subscription,
   usage,
   isOwner,
+  isRazorpayConfigured,
 }: SettingsViewProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"brand" | "competitors" | "prompts" | "billing">(
@@ -563,7 +567,14 @@ export function SettingsView({
               </ul>
             </div>
 
-            {isOwner && (
+            {isOwner && !isRazorpayConfigured && (
+              <div className="p-3 bg-[var(--color-surface-0)] border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-text-secondary)]">
+                Payments aren&apos;t enabled yet — self-serve upgrades are on hold while this is
+                still in testing. If you need a higher plan tier for testing, use the Plan Tier
+                Override in the Admin Console.
+              </div>
+            )}
+            {isOwner && isRazorpayConfigured && (
               <div className="space-y-2">
                 {PAID_PLAN_TIER_IDS.filter((tier) => tier !== workspace.plan_tier).map((tier) => (
                   <Button
