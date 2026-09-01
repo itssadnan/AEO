@@ -1,5 +1,9 @@
 import { signInAction, signInWithGoogleAction } from "../actions";
+import { Button } from "@/components/ui/button";
+import { Input, Label, FieldError } from "@/components/ui/input";
 
+// Restyled onto the shared design system (Module 5.6) 2026-09-01 — was raw
+// <input>/<button> markup predating that system. Logic/actions unchanged.
 export default async function SignInPage({
   searchParams,
 }: {
@@ -8,36 +12,30 @@ export default async function SignInPage({
   const { error } = await searchParams;
 
   return (
-    <div className="flex w-full max-w-sm flex-col gap-6 px-4">
-      <h1 className="text-xl font-semibold">Sign in</h1>
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+    <div className="flex flex-col gap-6">
+      <h1 className="text-xl font-semibold text-text-primary">Sign in</h1>
+      <FieldError>{error}</FieldError>
       <form action={signInAction} className="flex flex-col gap-3">
-        <input
-          name="email"
-          type="email"
-          placeholder="Email"
-          required
-          className="rounded border px-3 py-2"
-        />
-        <input
-          name="password"
-          type="password"
-          placeholder="Password"
-          required
-          className="rounded border px-3 py-2"
-        />
-        <button type="submit" className="rounded bg-black px-3 py-2 text-white">
+        <Label>
+          Email
+          <Input name="email" type="email" placeholder="you@company.com" required />
+        </Label>
+        <Label>
+          Password
+          <Input name="password" type="password" placeholder="••••••••" required />
+        </Label>
+        <Button type="submit" size="lg" className="mt-1 w-full">
           Sign in
-        </button>
+        </Button>
       </form>
       <form action={signInWithGoogleAction}>
-        <button type="submit" className="w-full rounded border px-3 py-2">
+        <Button type="submit" variant="outline" size="lg" className="w-full">
           Continue with Google
-        </button>
+        </Button>
       </form>
-      <p className="text-sm text-zinc-600">
+      <p className="text-sm text-text-secondary">
         No account?{" "}
-        <a href="/sign-up" className="underline">
+        <a href="/sign-up" className="text-accent hover:text-accent-hover underline">
           Sign up
         </a>
       </p>

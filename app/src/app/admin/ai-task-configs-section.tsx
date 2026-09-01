@@ -1,11 +1,11 @@
 "use client";
 
 import type { AiTaskConfigRow, ProviderName, FailoverMode } from "@/modules/admin";
-import {
-  upsertAiTaskConfigAction,
-  deleteWorkspaceOverrideAction,
-} from "@/modules/admin/actions";
+import { upsertAiTaskConfigAction, deleteWorkspaceOverrideAction } from "@/modules/admin/actions";
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input, Select, Checkbox } from "@/components/ui/input";
 
 interface AiTaskConfigsSectionProps {
   aiTaskConfigs: AiTaskConfigRow[];
@@ -21,6 +21,8 @@ const TASK_KEYS = [
 
 const PROVIDERS: ProviderName[] = ["gemini", "nvidia_nim"];
 
+// Restyled onto the shared design system (Module 5.6) 2026-09-01 — all
+// state/handlers/logic below unchanged, only markup/classes touched.
 export function AiTaskConfigsSection({ aiTaskConfigs }: AiTaskConfigsSectionProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<{
@@ -113,98 +115,86 @@ export function AiTaskConfigsSection({ aiTaskConfigs }: AiTaskConfigsSectionProp
   }
 
   return (
-    <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h2 className="text-xl font-semibold text-gray-900 mb-4">AI Task Configurations</h2>
-      <p className="text-sm text-gray-500 mb-6">
+    <section className="rounded-xl border border-border bg-surface-1 p-6">
+      <h2 className="mb-1 text-xl font-semibold text-text-primary">AI Task Configurations</h2>
+      <p className="mb-6 text-sm text-text-secondary">
         Global defaults (no workspace) apply to all workspaces unless overridden. Overrides are
         per-workspace and per-task.
       </p>
 
       <div className="space-y-8">
         {configsByTask.map(({ taskKey, global, overrides }) => (
-          <div key={taskKey} className="border-t border-gray-100 pt-6 first:border-0 first:pt-0">
-            <h3 className="text-lg font-medium text-gray-900 mb-4 capitalize">
+          <div key={taskKey} className="border-t border-border pt-6 first:border-0 first:pt-0">
+            <h3 className="mb-4 text-lg font-medium text-text-primary capitalize">
               {taskKey.replace(/_/g, " ")}
             </h3>
 
             {/* Global default row */}
             {global && (
-              <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">Global Default</span>
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                      global.enabled
-                        ? "bg-green-100 text-green-800"
-                        : "bg-gray-100 text-gray-800"
-                    }`}
-                  >
+              <div className="mb-4 rounded-lg bg-surface-2 p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm font-medium text-text-secondary">Global Default</span>
+                  <Badge tone={global.enabled ? "positive" : "neutral"}>
                     {global.enabled ? "Enabled" : "Disabled"}
-                  </span>
+                  </Badge>
                 </div>
                 {editingId === global.id ? (
                   <div className="space-y-2">
-                    <select
+                    <Select
                       value={editForm?.provider}
                       onChange={(e) =>
                         setEditForm({ ...editForm!, provider: e.target.value as ProviderName })
                       }
-                      className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      className="w-full md:w-48"
                     >
                       {PROVIDERS.map((p) => (
                         <option key={p} value={p} className="capitalize">
                           {p.replace("_", " ")}
                         </option>
                       ))}
-                    </select>
-                    <input
+                    </Select>
+                    <Input
                       type="text"
                       value={editForm?.model}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm!, model: e.target.value })
-                      }
+                      onChange={(e) => setEditForm({ ...editForm!, model: e.target.value })}
                       placeholder="Model name (e.g., gemini-3.5-flash-lite)"
-                      className="w-full md:w-64 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      className="w-full md:w-64"
                     />
-                    <label className="flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
+                    <label className="flex items-center gap-2 text-sm text-text-primary">
+                      <Checkbox
                         checked={editForm?.enabled}
-                        onChange={(e) =>
-                          setEditForm({ ...editForm!, enabled: e.target.checked })
-                        }
-                        className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                        onChange={(e) => setEditForm({ ...editForm!, enabled: e.target.checked })}
                       />
                       Enabled
                     </label>
                     <div className="flex gap-2">
-                      <button
-                        onClick={() => handleSaveEdit(global)}
-                        className="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
-                      >
+                      <Button size="sm" onClick={() => handleSaveEdit(global)}>
                         Save
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
                         onClick={() => {
                           setEditingId(null);
                           setEditForm(null);
                         }}
-                        className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
                       >
                         Cancel
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-wrap items-center gap-4 text-sm text-gray-900">
+                  <div className="flex flex-wrap items-center gap-4 text-sm text-text-primary">
                     <span className="font-mono">{global.provider}</span>
                     <span className="font-mono">{global.model}</span>
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="px-0 text-accent hover:text-accent-hover"
                       onClick={() => startEdit(global)}
-                      className="text-indigo-600 hover:text-indigo-900 font-medium"
                     >
                       Edit
-                    </button>
+                    </Button>
                   </div>
                 )}
               </div>
@@ -212,93 +202,87 @@ export function AiTaskConfigsSection({ aiTaskConfigs }: AiTaskConfigsSectionProp
 
             {/* Workspace overrides */}
             {overrides.length > 0 && (
-              <div className="ml-4 border-l-2 border-gray-200 pl-4 space-y-3">
-                <h4 className="text-sm font-medium text-gray-700">Workspace Overrides</h4>
+              <div className="ml-4 space-y-3 border-l-2 border-border pl-4">
+                <h4 className="text-sm font-medium text-text-secondary">Workspace Overrides</h4>
                 {overrides.map((override) => (
-                  <div key={override.id} className="p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-900">
+                  <div key={override.id} className="rounded-lg bg-surface-2 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-sm font-medium text-text-primary">
                         {override.workspaceName} ({override.workspaceId?.slice(0, 8)}...)
                       </span>
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                          override.enabled
-                            ? "bg-green-100 text-green-800"
-                            : "bg-gray-100 text-gray-800"
-                        }`}
-                      >
+                      <Badge tone={override.enabled ? "positive" : "neutral"}>
                         {override.enabled ? "Enabled" : "Disabled"}
-                      </span>
+                      </Badge>
                     </div>
                     {editingId === override.id ? (
                       <div className="space-y-2">
-                        <select
+                        <Select
                           value={editForm?.provider}
                           onChange={(e) =>
                             setEditForm({ ...editForm!, provider: e.target.value as ProviderName })
                           }
-                          className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          className="w-full md:w-48"
                         >
                           {PROVIDERS.map((p) => (
                             <option key={p} value={p} className="capitalize">
                               {p.replace("_", " ")}
                             </option>
                           ))}
-                        </select>
-                        <input
+                        </Select>
+                        <Input
                           type="text"
                           value={editForm?.model}
-                          onChange={(e) =>
-                            setEditForm({ ...editForm!, model: e.target.value })
-                          }
+                          onChange={(e) => setEditForm({ ...editForm!, model: e.target.value })}
                           placeholder="Model name"
-                          className="w-full md:w-64 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          className="w-full md:w-64"
                         />
-                        <label className="flex items-center gap-2 text-sm text-gray-700">
-                          <input
-                            type="checkbox"
+                        <label className="flex items-center gap-2 text-sm text-text-primary">
+                          <Checkbox
                             checked={editForm?.enabled}
                             onChange={(e) =>
                               setEditForm({ ...editForm!, enabled: e.target.checked })
                             }
-                            className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
                           />
                           Enabled
                         </label>
                         <div className="flex gap-2">
-                          <button
-                            onClick={() => handleSaveEdit(override)}
-                            className="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
-                          >
+                          <Button size="sm" onClick={() => handleSaveEdit(override)}>
                             Save
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
                             onClick={() => {
                               setEditingId(null);
                               setEditForm(null);
                             }}
-                            className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
                           >
                             Cancel
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     ) : (
-                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-900">
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-text-primary">
                         <span className="font-mono">{override.provider}</span>
                         <span className="font-mono">{override.model}</span>
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="px-0 text-accent hover:text-accent-hover"
                           onClick={() => startEdit(override)}
-                          className="text-indigo-600 hover:text-indigo-900 font-medium"
                         >
                           Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteOverride(override.taskKey, override.workspaceId!)}
-                          className="text-red-600 hover:text-red-900 font-medium"
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="px-0 text-negative hover:text-negative"
+                          onClick={() =>
+                            handleDeleteOverride(override.taskKey, override.workspaceId!)
+                          }
                         >
                           Delete
-                        </button>
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -308,86 +292,80 @@ export function AiTaskConfigsSection({ aiTaskConfigs }: AiTaskConfigsSectionProp
 
             {/* Add new override */}
             {showAddOverride === taskKey ? (
-              <div className="ml-4 mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <h4 className="text-sm font-medium text-blue-900 mb-3">Add Workspace Override</h4>
-                <div className="space-y-2 max-w-md space-y-3">
-                  <input
+              <div className="mt-4 ml-4 rounded-lg border border-accent/30 bg-accent-muted p-4">
+                <h4 className="mb-3 text-sm font-medium text-text-primary">
+                  Add Workspace Override
+                </h4>
+                <div className="max-w-md space-y-3">
+                  <Input
                     type="text"
                     placeholder="Workspace ID (UUID)"
                     value={newOverride?.workspaceId}
                     onChange={(e) =>
                       setNewOverride({ ...newOverride!, workspaceId: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                   />
-                  <input
+                  <Input
                     type="text"
                     placeholder="Workspace Name (for display)"
                     value={newOverride?.workspaceName}
                     onChange={(e) =>
                       setNewOverride({ ...newOverride!, workspaceName: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                   />
-                  <select
+                  <Select
                     value={newOverride?.provider}
                     onChange={(e) =>
                       setNewOverride({ ...newOverride!, provider: e.target.value as ProviderName })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                   >
                     {PROVIDERS.map((p) => (
                       <option key={p} value={p} className="capitalize">
                         {p.replace("_", " ")}
                       </option>
                     ))}
-                  </select>
-                  <input
+                  </Select>
+                  <Input
                     type="text"
                     placeholder="Model name (e.g., gemini-3.5-flash-lite)"
                     value={newOverride?.model}
-                    onChange={(e) =>
-                      setNewOverride({ ...newOverride!, model: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    onChange={(e) => setNewOverride({ ...newOverride!, model: e.target.value })}
                   />
-                  <label className="flex items-center gap-2 text-sm text-gray-700">
-                    <input
-                      type="checkbox"
+                  <label className="flex items-center gap-2 text-sm text-text-primary">
+                    <Checkbox
                       checked={newOverride?.enabled}
                       onChange={(e) =>
                         setNewOverride({ ...newOverride!, enabled: e.target.checked })
                       }
-                      className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
                     />
                     Enabled
                   </label>
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => handleAddOverride(taskKey)}
-                      className="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
-                    >
+                    <Button size="sm" onClick={() => handleAddOverride(taskKey)}>
                       Add Override
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
                       onClick={() => {
                         setShowAddOverride(null);
                         setNewOverride(null);
                       }}
-                      className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
                     >
                       Cancel
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
             ) : (
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mt-4 ml-4 px-0 text-accent hover:text-accent-hover"
                 onClick={() => startAddOverride(taskKey)}
-                className="ml-4 mt-4 text-sm text-indigo-600 hover:text-indigo-900 font-medium"
               >
                 + Add workspace override
-              </button>
+              </Button>
             )}
           </div>
         ))}

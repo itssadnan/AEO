@@ -12,6 +12,8 @@ import { useState, useTransition } from "react";
 // passed down as a plain prop instead, the way `limit` is below.
 import type { PlanTier } from "@/modules/brand-config";
 import { createBrandAction, suggestPromptsAction } from "./actions";
+import { Button } from "@/components/ui/button";
+import { Input, Textarea, Label, Checkbox, FieldError } from "@/components/ui/input";
 
 /**
  * Free-plan prompt lists are auto-selected from the AI suggestions and
@@ -20,6 +22,9 @@ import { createBrandAction, suggestPromptsAction } from "./actions";
  * enforcement is the DB trigger in migration 0005
  * (private.enforce_prompt_plan_rules), not this component. If this ever
  * disagrees with the trigger, the trigger wins.
+ *
+ * Restyled onto the shared design system (Module 5.6) 2026-09-01 — all
+ * state/handlers/logic below unchanged, only markup/classes touched.
  */
 export function BrandForm({
   workspaceId,
@@ -114,58 +119,56 @@ export function BrandForm({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        <label className="flex flex-col gap-1 text-sm">
+        <Label>
           Brand name
-          <input
+          <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="rounded border px-3 py-2"
             placeholder="Acme CRM"
             maxLength={200}
           />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
+        </Label>
+        <Label>
           Website
-          <input
+          <Input
             value={website}
             onChange={(e) => setWebsite(e.target.value)}
-            className="rounded border px-3 py-2"
             placeholder="https://acme.com"
             maxLength={500}
           />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
+        </Label>
+        <Label>
           Competitors (one per line, up to 20)
-          <textarea
+          <Textarea
             value={competitorsText}
             onChange={(e) => setCompetitorsText(e.target.value)}
-            className="min-h-20 rounded border px-3 py-2"
             placeholder={"Competitor A\nCompetitor B"}
           />
-        </label>
+        </Label>
       </div>
 
       <div className="flex flex-col gap-2">
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={handleSuggest}
           disabled={!name.trim() || isSuggesting}
-          className="w-fit rounded border px-3 py-2 disabled:opacity-50"
+          isLoading={isSuggesting}
+          className="w-fit"
         >
           {isSuggesting ? "Suggesting…" : "Suggest prompts with AI"}
-        </button>
+        </Button>
         {suggested.length > 0 && (
-          <div className="flex flex-col gap-1 rounded border p-3">
-            <p className="text-sm text-zinc-600">
+          <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-2 p-3">
+            <p className="text-sm text-text-secondary">
               {isFree
                 ? `Your Free plan uses the first ${Math.min(limit, suggested.length)} suggestions below, fixed — upgrade to customize.`
                 : "Pick the prompts to track (uncheck any you don't want):"}
             </p>
-            <ul className="flex flex-col gap-1">
+            <ul className="flex flex-col gap-1.5">
               {suggested.map((p, i) => (
-                <li key={i} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
+                <li key={i} className="flex items-center gap-2 text-sm text-text-primary">
+                  <Checkbox
                     checked={selected.has(i)}
                     onChange={() => toggleSelected(i)}
                     disabled={isFree}
@@ -179,27 +182,27 @@ export function BrandForm({
       </div>
 
       {!isFree && (
-        <label className="flex flex-col gap-1 text-sm">
+        <Label>
           Add your own prompts (one per line, up to {limit} total across suggested + manual)
-          <textarea
+          <Textarea
             value={manualPromptsText}
             onChange={(e) => setManualPromptsText(e.target.value)}
-            className="min-h-20 rounded border px-3 py-2"
             placeholder={"best CRM for a 10-person agency\nCRM with the best onboarding"}
           />
-        </label>
+        </Label>
       )}
 
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      <FieldError>{error}</FieldError>
 
-      <button
+      <Button
         type="button"
         onClick={handleSubmit}
         disabled={!name.trim() || isSubmitting}
-        className="w-fit rounded bg-black px-3 py-2 text-white disabled:opacity-50"
+        isLoading={isSubmitting}
+        className="w-fit"
       >
         {isSubmitting ? "Creating…" : "Create brand"}
-      </button>
+      </Button>
     </div>
   );
 }

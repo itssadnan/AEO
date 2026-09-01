@@ -11,6 +11,9 @@ import { BrandForm } from "./brand-form";
  * acceptance criteria (manual entry + AI-assisted prompt suggestion +
  * plan-tier-aware prompt handling) have a real, testable surface. Redirects
  * to /overview (Module 5.6's real dashboard) on success/fallback.
+ *
+ * Restyled onto the shared design system (Module 5.6) 2026-09-01 — logic
+ * below (auth guard, viewer-only message, limit computation) unchanged.
  */
 export default async function NewBrandPage() {
   const supabase = await createSupabaseServerClient();
@@ -52,9 +55,9 @@ export default async function NewBrandPage() {
   // convention.
   if (membership.role === "viewer") {
     return (
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 py-24">
-        <h1 className="text-2xl font-semibold">Add a brand</h1>
-        <p className="text-zinc-600">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 py-24 px-4">
+        <h1 className="text-2xl font-semibold text-text-primary">Add a brand</h1>
+        <p className="text-text-secondary">
           You have view-only access to this workspace. Ask an owner or member to add a brand.
         </p>
       </div>
@@ -69,14 +72,16 @@ export default async function NewBrandPage() {
   const limit = PROMPT_LIMIT_BY_PLAN_TIER[planTier];
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 py-24">
-      <div>
-        <h1 className="text-2xl font-semibold">Add a brand</h1>
-        <p className="text-zinc-600">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-16">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold text-text-primary">Add a brand</h1>
+        <p className="text-text-secondary">
           Workspace: {workspace.name} ({planTier} plan)
         </p>
       </div>
-      <BrandForm workspaceId={workspace.id} planTier={planTier} limit={limit} />
+      <div className="rounded-xl border border-border bg-surface-1 p-6">
+        <BrandForm workspaceId={workspace.id} planTier={planTier} limit={limit} />
+      </div>
     </div>
   );
 }

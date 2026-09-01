@@ -2,11 +2,15 @@
 
 import type { KeyHealthRow, ProviderName, KeySlot } from "@/modules/admin";
 import { clearDeadKeyAction } from "@/modules/admin/actions";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface KeyHealthSectionProps {
   keyHealth: KeyHealthRow[];
 }
 
+// Restyled onto the shared design system (Module 5.6) 2026-09-01 — all
+// data/logic below unchanged, only markup/classes touched.
 export function KeyHealthSection({ keyHealth }: KeyHealthSectionProps) {
   async function handleClearDeadKey(provider: ProviderName, slot: KeySlot) {
     const result = await clearDeadKeyAction(provider, slot);
@@ -18,67 +22,70 @@ export function KeyHealthSection({ keyHealth }: KeyHealthSectionProps) {
   }
 
   return (
-    <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h2 className="text-xl font-semibold text-gray-900 mb-4">Key Pool Health</h2>
-      <p className="text-sm text-gray-500 mb-6">
+    <section className="rounded-xl border border-border bg-surface-1 p-6">
+      <h2 className="mb-1 text-xl font-semibold text-text-primary">Key Pool Health</h2>
+      <p className="mb-6 text-sm text-text-secondary">
         Current status of each API key in the pool. Dead keys (401/403) are excluded from the
         failover rotation until manually cleared.
       </p>
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="overflow-x-auto rounded-lg border border-border">
+        <table className="min-w-full divide-y divide-border">
+          <thead className="bg-surface-2">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-text-tertiary uppercase">
                 Provider
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-text-tertiary uppercase">
                 Slot
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-text-tertiary uppercase">
                 Status
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-text-tertiary uppercase">
                 Dead Since
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-text-tertiary uppercase">
                 Last Error
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-text-tertiary uppercase">
                 Action
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="divide-y divide-border">
             {keyHealth.map((row) => (
-              <tr key={`${row.provider}-${row.keySlot}`} className={row.isDead ? "bg-red-50" : ""}>
-                <td className="px-4 py-3 text-sm font-medium text-gray-900 capitalize">
+              <tr
+                key={`${row.provider}-${row.keySlot}`}
+                className={
+                  row.isDead ? "bg-negative-muted" : "hover:bg-surface-2/50 transition-colors"
+                }
+              >
+                <td className="px-4 py-3 text-sm font-medium text-text-primary capitalize">
                   {row.provider.replace("_", " ")}
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-900 capitalize">{row.keySlot}</td>
+                <td className="px-4 py-3 text-sm text-text-primary capitalize">{row.keySlot}</td>
                 <td className="px-4 py-3 text-sm">
                   {row.isDead ? (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                      Dead
-                    </span>
+                    <Badge tone="negative">Dead</Badge>
                   ) : (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      Alive
-                    </span>
+                    <Badge tone="positive">Alive</Badge>
                   )}
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-900">
+                <td className="px-4 py-3 text-sm text-text-primary">
                   {row.deadAt ? new Date(row.deadAt).toLocaleString() : "—"}
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-900">{row.lastErrorCode ?? "—"}</td>
+                <td className="px-4 py-3 text-sm text-text-primary">{row.lastErrorCode ?? "—"}</td>
                 <td className="px-4 py-3 text-sm">
                   {row.isDead && (
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-accent hover:text-accent-hover px-0"
                       onClick={() => handleClearDeadKey(row.provider, row.keySlot)}
-                      className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
                     >
                       Clear dead flag
-                    </button>
+                    </Button>
                   )}
                 </td>
               </tr>

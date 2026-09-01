@@ -2,11 +2,14 @@
 
 import type { ProviderName, FailoverMode } from "@/modules/admin";
 import { setFailoverModeAction } from "@/modules/admin/actions";
+import { Button } from "@/components/ui/button";
 
 interface FailoverModeSectionProps {
   failoverModes: Record<ProviderName, FailoverMode>;
 }
 
+// Restyled onto the shared design system (Module 5.6) 2026-09-01 — all
+// data/logic below unchanged, only markup/classes touched.
 export function FailoverModeSection({ failoverModes }: FailoverModeSectionProps) {
   const providers: ProviderName[] = ["gemini", "nvidia_nim"];
 
@@ -21,9 +24,9 @@ export function FailoverModeSection({ failoverModes }: FailoverModeSectionProps)
   }
 
   return (
-    <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h2 className="text-xl font-semibold text-gray-900 mb-4">Failover Mode</h2>
-      <p className="text-sm text-gray-500 mb-6">
+    <section className="rounded-xl border border-border bg-surface-1 p-6">
+      <h2 className="mb-1 text-xl font-semibold text-text-primary">Failover Mode</h2>
+      <p className="mb-6 text-sm text-text-secondary">
         Controls whether secondary/tertiary keys absorb rate limits (<strong>shared</strong>) or are
         reserved for hard failures only (<strong>emergency-only</strong>).
       </p>
@@ -32,28 +35,24 @@ export function FailoverModeSection({ failoverModes }: FailoverModeSectionProps)
         {providers.map((provider) => {
           const mode = failoverModes[provider];
           return (
-            <div key={provider} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <div className="flex items-center justify-between">
+            <div key={provider} className="rounded-lg border border-border bg-surface-2 p-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 capitalize">
+                  <h3 className="text-lg font-medium text-text-primary capitalize">
                     {provider.replace("_", " ")}
                   </h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Current:{" "}
-                    <span className="font-mono font-medium capitalize">{mode}</span>
+                  <p className="mt-1 text-sm text-text-secondary">
+                    Current: <span className="font-mono font-medium capitalize">{mode}</span>
                   </p>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-sm text-gray-600 bg-yellow-50 px-3 py-1.5 rounded border border-yellow-200">
+                <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+                  <div className="rounded-lg border border-[var(--color-warning)]/30 bg-[var(--color-warning)]/10 px-3 py-1.5 text-sm text-text-primary">
                     ⚠ Switch to <strong>emergency-only</strong> the moment primary is upgraded to
                     paid/higher-tier.
                   </div>
-                  <button
-                    onClick={() => handleToggleMode(provider, mode)}
-                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
-                  >
+                  <Button size="sm" onClick={() => handleToggleMode(provider, mode)}>
                     Switch to {mode === "shared" ? "emergency-only" : "shared"}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>

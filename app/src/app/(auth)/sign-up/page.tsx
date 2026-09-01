@@ -1,5 +1,9 @@
 import { signInWithGoogleAction, signUpAction } from "../actions";
+import { Button } from "@/components/ui/button";
+import { Input, Label, FieldError } from "@/components/ui/input";
 
+// Restyled onto the shared design system (Module 5.6) 2026-09-01 — was raw
+// <input>/<button> markup predating that system. Logic/actions unchanged.
 export default async function SignUpPage({
   searchParams,
 }: {
@@ -8,44 +12,40 @@ export default async function SignUpPage({
   const { error } = await searchParams;
 
   return (
-    <div className="flex w-full max-w-sm flex-col gap-6 px-4">
-      <h1 className="text-xl font-semibold">Create your account</h1>
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+    <div className="flex flex-col gap-6">
+      <h1 className="text-xl font-semibold text-text-primary">Create your account</h1>
+      <FieldError>{error}</FieldError>
       <form action={signUpAction} className="flex flex-col gap-3">
-        <input
-          name="workspaceName"
-          type="text"
-          placeholder="Workspace name (e.g. your company)"
-          required
-          className="rounded border px-3 py-2"
-        />
-        <input
-          name="email"
-          type="email"
-          placeholder="Email"
-          required
-          className="rounded border px-3 py-2"
-        />
-        <input
-          name="password"
-          type="password"
-          placeholder="Password (min 8 characters)"
-          required
-          minLength={8}
-          className="rounded border px-3 py-2"
-        />
-        <button type="submit" className="rounded bg-black px-3 py-2 text-white">
+        <Label>
+          Workspace name
+          <Input name="workspaceName" type="text" placeholder="Your company" required />
+        </Label>
+        <Label>
+          Email
+          <Input name="email" type="email" placeholder="you@company.com" required />
+        </Label>
+        <Label>
+          Password
+          <Input
+            name="password"
+            type="password"
+            placeholder="Min 8 characters"
+            required
+            minLength={8}
+          />
+        </Label>
+        <Button type="submit" size="lg" className="mt-1 w-full">
           Sign up
-        </button>
+        </Button>
       </form>
       <form action={signInWithGoogleAction}>
-        <button type="submit" className="w-full rounded border px-3 py-2">
+        <Button type="submit" variant="outline" size="lg" className="w-full">
           Continue with Google
-        </button>
+        </Button>
       </form>
-      <p className="text-sm text-zinc-600">
+      <p className="text-sm text-text-secondary">
         Already have an account?{" "}
-        <a href="/sign-in" className="underline">
+        <a href="/sign-in" className="text-accent hover:text-accent-hover underline">
           Sign in
         </a>
       </p>

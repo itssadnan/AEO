@@ -2,6 +2,7 @@
 
 import type { ProviderQuotaSnapshot, ProviderName, KeySlot } from "@/modules/admin";
 import { KNOWN_FREE_TIER_CAPS } from "@/modules/admin/quota-caps";
+import { Badge } from "@/components/ui/badge";
 
 interface QuotaSectionProps {
   quotaSnapshot: ProviderQuotaSnapshot[];
@@ -9,13 +10,17 @@ interface QuotaSectionProps {
   isNearCap: (count: number, cap: number | null) => boolean;
 }
 
+// Restyled onto the shared design system (Module 5.6) 2026-09-01 — all
+// data/logic below unchanged, only markup/classes touched.
 export function QuotaSection({ quotaSnapshot, knownFreeTierCaps, isNearCap }: QuotaSectionProps) {
   const keySlots: (KeySlot | "unknown")[] = ["primary", "secondary", "tertiary", "unknown"];
 
   return (
-    <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h2 className="text-xl font-semibold text-gray-900 mb-4">Quota Consumption (per key slot)</h2>
-      <p className="text-sm text-gray-500 mb-6">
+    <section className="rounded-xl border border-border bg-surface-1 p-6">
+      <h2 className="mb-1 text-xl font-semibold text-text-primary">
+        Quota Consumption (per key slot)
+      </h2>
+      <p className="mb-6 text-sm text-text-secondary">
         Request counts for the last 1h and 24h, broken down by provider and key slot. Historical
         rows before migration 0019 show as &quot;unknown&quot; slot — this is expected.
       </p>
@@ -24,34 +29,34 @@ export function QuotaSection({ quotaSnapshot, knownFreeTierCaps, isNearCap }: Qu
         {quotaSnapshot.map((provider) => (
           <div
             key={provider.provider}
-            className="border-t border-gray-100 pt-6 first:border-0 first:pt-0"
+            className="border-t border-border pt-6 first:border-0 first:pt-0"
           >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900 capitalize">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-medium text-text-primary capitalize">
                 {provider.provider.replace("_", " ")}
               </h3>
-              <span className="text-sm text-gray-500">{provider.informationalCapNote}</span>
+              <span className="text-sm text-text-tertiary">{provider.informationalCapNote}</span>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <table className="min-w-full divide-y divide-border">
+                <thead className="bg-surface-2">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-text-tertiary uppercase">
                       Key Slot
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-text-tertiary uppercase">
                       Last 1h
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-text-tertiary uppercase">
                       Last 24h
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-text-tertiary uppercase">
                       Status
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="divide-y divide-border">
                   {keySlots.map((slot) => {
                     const counts = provider.byKeySlot[slot];
                     const capInfo =
@@ -64,19 +69,24 @@ export function QuotaSection({ quotaSnapshot, knownFreeTierCaps, isNearCap }: Qu
                     const nearCap = isNearCap(counts.last1h, rpmCap);
 
                     return (
-                      <tr key={slot} className={nearCap ? "bg-yellow-50" : ""}>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900 capitalize">
+                      <tr
+                        key={slot}
+                        className={
+                          nearCap
+                            ? "bg-[var(--color-warning)]/10"
+                            : "hover:bg-surface-2/50 transition-colors"
+                        }
+                      >
+                        <td className="px-4 py-3 text-sm font-medium text-text-primary capitalize">
                           {slot}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">{counts.last1h}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900">{counts.last24h}</td>
+                        <td className="px-4 py-3 text-sm text-text-primary">{counts.last1h}</td>
+                        <td className="px-4 py-3 text-sm text-text-primary">{counts.last24h}</td>
                         <td className="px-4 py-3 text-sm">
                           {nearCap ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                              Near cap (≥80%)
-                            </span>
+                            <Badge tone="warning">Near cap (≥80%)</Badge>
                           ) : (
-                            <span className="text-gray-500">OK</span>
+                            <span className="text-text-tertiary">OK</span>
                           )}
                         </td>
                       </tr>
