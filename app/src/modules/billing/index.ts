@@ -23,7 +23,11 @@ export type {
 
 export { verifyRazorpayWebhookSignature } from "./webhook-verify";
 
-export { isRazorpayConfigured, SUBSCRIPTION_TOTAL_COUNT } from "./razorpay-client";
+export {
+  isRazorpayConfigured,
+  isBillingFullyConfigured,
+  SUBSCRIPTION_TOTAL_COUNT,
+} from "./razorpay-client";
 
 export { getSubscriptionForWorkspace, getUsageSnapshot } from "./queries";
 export type { SubscriptionRow, UsageSnapshot } from "./queries";

@@ -6,7 +6,6 @@ import { Card } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { EngineBadge } from "@/components/ui/engine-badge";
 import { PlanBadge } from "@/components/ui/plan-badge";
-import { LockedPanel } from "@/components/ui/locked-panel";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CalculationDisclosure } from "@/components/ui/calculation-disclosure";
 import { PageSkeleton } from "@/components/ui/skeleton";
@@ -44,12 +43,20 @@ export function CompetitorExplorerView({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Free tier lock check
-  const isLocked = workspace.plan_tier === "free" && competitors.length > 0;
+  // Competitor Explorer previously locked its entire view (including
+  // Share-of-Voice) for any Free-tier workspace once it had competitors --
+  // found 2026-09-01 to contradict this module's own acceptance criteria
+  // (progress/modules/5.6-dashboard-frontend.md: "Share-of-Voice always
+  // shown ... locked/upsell state" only for the separate Explanation
+  // Engine / Opportunity Finder panels, neither of which exists as a
+  // built feature in this file). The billing plan cards (settings-view.tsx)
+  // never listed competitor tracking as a paid-only feature either -- plan
+  // tiers differ by usage limits (brands/prompts/check frequency), not by
+  // walling off this page. Removed the plan-based lock entirely so every
+  // tier sees the same competitor comparison table.
 
   // Fetch competitor explorer data
   const fetchCompetitorData = useCallback(async () => {
-    if (isLocked) return;
     setIsLoading(true);
     setError(null);
     try {
@@ -62,42 +69,12 @@ export function CompetitorExplorerView({
     } finally {
       setIsLoading(false);
     }
-  }, [engine, brand.id, isLocked]);
+  }, [engine, brand.id]);
 
   // Load data on mount and engine change
   React.useEffect(() => {
     fetchCompetitorData();
   }, [fetchCompetitorData]);
-
-  if (isLocked) {
-    return (
-      <div className="mx-auto max-w-4xl space-y-8">
-        {/* Brand header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">
-              {brand.name}
-            </h1>
-            <p className="text-[var(--color-text-secondary)] mt-1">
-              Workspace: {workspace.name} •{" "}
-              <PlanBadge plan={workspace.plan_tier as "free" | "starter" | "growth" | "agency"} />
-            </p>
-          </div>
-          <EngineBadge engine={engine} size="sm" />
-        </div>
-
-        {/* Locked panel */}
-        <LockedPanel
-          isLocked={true}
-          lockMessage="Competitor tracking is a Pro feature. Upgrade to unlock detailed competitor analysis."
-          ctaLabel="Upgrade to Pro"
-          ctaHref="/settings/billing"
-        >
-          <div />
-        </LockedPanel>
-      </div>
-    );
-  }
 
   const hasData = competitorData.length > 0 && !isLoading;
 

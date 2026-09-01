@@ -88,48 +88,58 @@ export async function computeOverviewMetrics(
   const supabase = await getSupabase();
   const provider = engine === "gemini" ? "google_gemini" : "nvidia_nim";
 
-  // Get latest snapshot
-  const { data: snapshot } = (await supabaseFrom(supabase, "visibility_snapshots")
-    .select("score, share_of_voice, mention_count, avg_rank, generated_at")
-    .eq("brand_id", brandId)
-    .order("generated_at", { ascending: false })
-    .limit(1)
-    .single()) as {
-    data: VisibilitySnapshotRow | null;
-    // Only `data` is read below (checked via truthiness); `error` isn't reused, so a precise
-    // Postgrest error type isn't worth reproducing here.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    error: any;
-  };
-
-  // Get competitor count
-  const { count: competitorCount } = await supabase
-    .from("competitors")
-    .select("*", { count: "exact", head: true })
-    .eq("brand_id", brandId);
-
-  // Get prompt count
-  const { count: promptCount } = await supabase
-    .from("prompts")
-    .select("*", { count: "exact", head: true })
-    .eq("brand_id", brandId)
-    .eq("is_active", true);
-
-  // Get last checked time from check_runs
-  const { data: lastRun } = await supabase
-    .from("check_runs")
-    .select("checked_at")
-    .eq("brand_id", brandId)
-    .eq("provider", provider)
-    .eq("status", "completed")
-    .order("checked_at", { ascending: false })
-    .limit(1)
-    .single();
+  // These five reads are all independent of one another (none depends on
+  // another's result), so they're fetched in parallel rather than as a
+  // sequential waterfall -- found 2026-09-02 while diagnosing why every
+  // dashboard page took multiple seconds to render: this function alone
+  // was doing 4-5 fully sequential round trips to a cross-region database
+  // (Supabase in ap-southeast-1, Vercel in iad1), which stacks real network
+  // latency instead of overlapping it. brandName is now always fetched
+  // (previously only when a snapshot existed) since it's one more parallel
+  // query, not an extra sequential one.
+  const [
+    { data: snapshot },
+    { count: competitorCount },
+    { count: promptCount },
+    { data: lastRun },
+    { data: brand },
+  ] = await Promise.all([
+    supabaseFrom(supabase, "visibility_snapshots")
+      .select("score, share_of_voice, mention_count, avg_rank, generated_at")
+      .eq("brand_id", brandId)
+      .order("generated_at", { ascending: false })
+      .limit(1)
+      .single() as unknown as Promise<{
+      data: VisibilitySnapshotRow | null;
+      // Only `data` is read below (checked via truthiness); `error` isn't reused, so a precise
+      // Postgrest error type isn't worth reproducing here.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      error: any;
+    }>,
+    supabase
+      .from("competitors")
+      .select("*", { count: "exact", head: true })
+      .eq("brand_id", brandId),
+    supabase
+      .from("prompts")
+      .select("*", { count: "exact", head: true })
+      .eq("brand_id", brandId)
+      .eq("is_active", true),
+    supabase
+      .from("check_runs")
+      .select("checked_at")
+      .eq("brand_id", brandId)
+      .eq("provider", provider)
+      .eq("status", "completed")
+      .order("checked_at", { ascending: false })
+      .limit(1)
+      .single(),
+    supabase.from("brands").select("name").eq("id", brandId).single(),
+  ]);
 
   if (snapshot) {
     const shareOfVoice = snapshot.share_of_voice as Record<string, number>;
-    const brand = await supabase.from("brands").select("name").eq("id", brandId).single();
-    const brandName = brand.data?.name ?? "";
+    const brandName = brand?.name ?? "";
     const brandShare = shareOfVoice[brandName] ?? 0;
 
     // Calculate rank from share_of_voice. share_of_voice is stored as JSONB (the generated Json
@@ -168,11 +178,16 @@ export async function computeOverviewMetrics(
 export async function getPromptExplorerData(
   brandId: string,
   engine: "gemini" | "nvidia-nim" = "gemini",
+  // Optional report-period bounds (ISO timestamps). Undefined = unfiltered,
+  // which preserves the existing behavior for Prompt Explorer's own caller
+  // (no period selector there) -- only getReportData passes these.
+  periodStart?: string,
+  periodEnd?: string,
 ): Promise<PromptExplorerRow[]> {
   const supabase = await getSupabase();
   const provider = engine === "gemini" ? "google_gemini" : "nvidia_nim";
 
-  const { data: runs } = await supabase
+  let runsQuery = supabase
     .from("check_runs")
     .select(
       `
@@ -193,9 +208,10 @@ export async function getPromptExplorerData(
     )
     .eq("brand_id", brandId)
     .eq("provider", provider)
-    .eq("status", "completed")
-    .order("checked_at", { ascending: false })
-    .limit(100);
+    .eq("status", "completed");
+  if (periodStart) runsQuery = runsQuery.gte("checked_at", periodStart);
+  if (periodEnd) runsQuery = runsQuery.lte("checked_at", periodEnd);
+  const { data: runs } = await runsQuery.order("checked_at", { ascending: false }).limit(100);
 
   if (!runs) return [];
 
@@ -245,6 +261,11 @@ export async function getPromptExplorerData(
 export async function getCompetitorExplorerData(
   brandId: string,
   engine: "gemini" | "nvidia-nim" = "gemini",
+  // Same optional report-period bounds as getPromptExplorerData above --
+  // undefined = unfiltered (Competitor Explorer's own caller has no period
+  // selector), only getReportData passes these.
+  periodStart?: string,
+  periodEnd?: string,
 ): Promise<CompetitorExplorerRow[]> {
   const supabase = await getSupabase();
   const provider = engine === "gemini" ? "google_gemini" : "nvidia_nim";
@@ -258,7 +279,7 @@ export async function getCompetitorExplorerData(
   if (!competitors || competitors.length === 0) return [];
 
   // Get all check_runs and extractions for this brand/provider
-  const { data: runs } = await supabase
+  let runsQuery = supabase
     .from("check_runs")
     .select(
       `
@@ -273,6 +294,9 @@ export async function getCompetitorExplorerData(
     .eq("brand_id", brandId)
     .eq("provider", provider)
     .eq("status", "completed");
+  if (periodStart) runsQuery = runsQuery.gte("checked_at", periodStart);
+  if (periodEnd) runsQuery = runsQuery.lte("checked_at", periodEnd);
+  const { data: runs } = await runsQuery;
 
   if (!runs) return [];
 
@@ -375,8 +399,8 @@ export async function getReportData(
 
   const [overview, prompts, competitors] = await Promise.all([
     computeOverviewMetrics(brandId, engine),
-    getPromptExplorerData(brandId, engine),
-    getCompetitorExplorerData(brandId, engine),
+    getPromptExplorerData(brandId, engine, periodStart, periodEnd),
+    getCompetitorExplorerData(brandId, engine, periodStart, periodEnd),
   ]);
 
   return {

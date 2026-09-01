@@ -18,6 +18,7 @@
  * Authenticated via HTTP Basic Auth, `key_id:key_secret` base64-encoded.
  */
 import "server-only";
+import { PAID_PLAN_TIER_IDS, getRazorpayPlanId } from "./plans";
 
 const RAZORPAY_API_BASE = "https://api.razorpay.com/v1";
 
@@ -30,6 +31,28 @@ export const SUBSCRIPTION_TOTAL_COUNT = 120;
 
 export function isRazorpayConfigured(): boolean {
   return Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
+}
+
+/**
+ * True only when Razorpay is fully ready to take a real payment: API keys
+ * present AND every paid tier has a real Plan id configured. This is
+ * deliberately stricter than isRazorpayConfigured() above, which only
+ * proves the API keys exist.
+ *
+ * Found live 2026-09-01: this deployment has real (test) RAZORPAY_KEY_ID/
+ * RAZORPAY_KEY_SECRET set, so isRazorpayConfigured() returns true and
+ * Settings -> Billing rendered live "Upgrade" buttons -- but no
+ * RAZORPAY_PLAN_ID_* env vars are set, so clicking one threw
+ * startCheckoutAction's internal "No Razorpay Plan id is configured for
+ * the X tier yet." error straight at the customer instead of the
+ * "payments on hold" message that code path was written for. Settings'
+ * page.tsx now gates on this function instead, so the on-hold message
+ * shows whenever *either* piece is missing, not just when the keys are.
+ */
+export function isBillingFullyConfigured(): boolean {
+  return (
+    isRazorpayConfigured() && PAID_PLAN_TIER_IDS.every((tier) => getRazorpayPlanId(tier) !== null)
+  );
 }
 
 function getAuthHeader(): string {

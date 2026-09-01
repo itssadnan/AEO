@@ -39,21 +39,30 @@ export default async function ReportsPage({
     redirect("/sign-in");
   }
 
-  const { data: workspace } = await supabase
-    .from("workspaces")
-    .select("id, name, plan_tier")
-    .eq("id", membership.workspace_id)
-    .single();
+  // workspace and brands are both independent lookups keyed off
+  // membership.workspace_id (not off each other), so they run in parallel
+  // rather than as a second sequential round trip -- found 2026-09-02: this
+  // exact 4-query waterfall (getUser -> membership -> workspace -> brands),
+  // repeated verbatim across every dashboard page, was the biggest single
+  // contributor to multi-second page loads once combined with the
+  // cross-region (Vercel iad1 <-> Supabase ap-southeast-1) latency each
+  // round trip pays.
+  const [{ data: workspace }, { data: brands }] = await Promise.all([
+    supabase
+      .from("workspaces")
+      .select("id, name, plan_tier")
+      .eq("id", membership.workspace_id)
+      .single(),
+    supabase
+      .from("brands")
+      .select("id, name")
+      .eq("workspace_id", membership.workspace_id)
+      .order("created_at", { ascending: true }),
+  ]);
 
   if (!workspace) {
     redirect("/sign-in");
   }
-
-  const { data: brands } = await supabase
-    .from("brands")
-    .select("id, name")
-    .eq("workspace_id", workspace.id)
-    .order("created_at", { ascending: true });
 
   const params = await searchParams;
   const brandId = params.brandId ?? brands?.[0]?.id;

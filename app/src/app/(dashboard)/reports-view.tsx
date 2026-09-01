@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { EngineBadge } from "@/components/ui/engine-badge";
 import { PlanBadge } from "@/components/ui/plan-badge";
-import { LockedPanel } from "@/components/ui/locked-panel";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CalculationDisclosure } from "@/components/ui/calculation-disclosure";
 import { Button } from "@/components/ui/button";
@@ -48,8 +47,15 @@ export function ReportsView({
   const [error, setError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Free tier lock check - reports are a paid feature
-  const isLocked = workspace.plan_tier === "free";
+  // Reports previously locked its ENTIRE page (including the always-should-
+  // be-visible crawl-readiness checklist) for every non-paying workspace --
+  // found 2026-09-01 to go well beyond what this module's own acceptance
+  // criteria call for ("Reports: crawl-readiness checklist +
+  // exportable/white-label summaries (Agency plan)" -- only the export/
+  // white-label part is Agency-gated). Only the PDF/CSV export buttons
+  // below are now gated; everything else, including this page's data view
+  // and the crawl-readiness audit, is available to every plan tier.
+  const canExport = workspace.plan_tier === "agency";
 
   const periodLabels = {
     "7d": "Last 7 days",
@@ -58,7 +64,6 @@ export function ReportsView({
   };
 
   const fetchReportData = useCallback(async () => {
-    if (isLocked) return;
     setIsLoading(true);
     setError(null);
     try {
@@ -73,7 +78,7 @@ export function ReportsView({
     } finally {
       setIsLoading(false);
     }
-  }, [engine, period, brand.id, isLocked]);
+  }, [engine, period, brand.id]);
 
   const generateReport = async (format: "pdf" | "csv") => {
     setIsGenerating(true);
@@ -102,34 +107,6 @@ export function ReportsView({
   useEffect(() => {
     fetchReportData();
   }, [fetchReportData]);
-
-  if (isLocked) {
-    return (
-      <div className="mx-auto max-w-4xl space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">
-              {brand.name}
-            </h1>
-            <p className="text-[var(--color-text-secondary)] mt-1">
-              Workspace: {workspace.name} •{" "}
-              <PlanBadge plan={workspace.plan_tier as "free" | "starter" | "growth" | "agency"} />
-            </p>
-          </div>
-          <EngineBadge engine={engine} size="sm" />
-        </div>
-
-        <LockedPanel
-          isLocked={true}
-          lockMessage="Scheduled reports and PDF/CSV export are Pro features. Upgrade to unlock automated reporting."
-          ctaLabel="Upgrade to Pro"
-          ctaHref="/settings/billing"
-        >
-          <div />
-        </LockedPanel>
-      </div>
-    );
-  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
@@ -179,22 +156,30 @@ export function ReportsView({
             </Button>
             <Button
               onClick={() => generateReport("pdf")}
-              disabled={isGenerating || !reportData}
+              disabled={isGenerating || !reportData || !canExport}
               variant="primary"
               size="sm"
+              title={canExport ? undefined : "PDF/CSV export requires the Agency plan"}
             >
               {isGenerating ? "Generating..." : "Export PDF"}
             </Button>
             <Button
               onClick={() => generateReport("csv")}
-              disabled={isGenerating || !reportData}
+              disabled={isGenerating || !reportData || !canExport}
               variant="secondary"
               size="sm"
+              title={canExport ? undefined : "PDF/CSV export requires the Agency plan"}
             >
               Export CSV
             </Button>
           </div>
         </div>
+        {!canExport && (
+          <p className="text-sm text-[var(--color-text-tertiary)] mb-4">
+            PDF/CSV export is an Agency-plan feature. The report data above is available on every
+            plan.
+          </p>
+        )}
 
         {error && (
           <div className="mb-4 p-4 bg-[var(--color-negative-muted)] border border-[var(--color-negative)] rounded-lg text-[var(--color-negative)]">
@@ -342,11 +327,7 @@ export function ReportsView({
       {/* Crawl Readiness Audit section (Module 5.7) — CrawlAuditTrigger
           renders its own root Card, so no wrapping Card here (avoids a
           double-nested card). */}
-      <CrawlAuditTrigger
-        brandId={brand.id}
-        websiteUrl={brand.website}
-        initialAudit={crawlAudit}
-      />
+      <CrawlAuditTrigger brandId={brand.id} websiteUrl={brand.website} initialAudit={crawlAudit} />
 
       {/* Scheduled reports section (placeholder for future) */}
       <Card className="p-6">
