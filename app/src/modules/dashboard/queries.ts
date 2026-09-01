@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/db/supabase-server";
+import { createSupabaseServiceRoleClient } from "@/lib/db/supabase-service-role";
 import type {
   BrandWithRelations,
   OverviewMetrics,
@@ -512,6 +513,22 @@ export async function getEmptyStateConfig(brandId: string | null): Promise<Empty
     if (brand) {
       hasBrands = true;
 
+      // check_jobs has RLS enabled with *no* select policy at all (migration
+      // 0007: "A job can reveal a customer's prompt cadence, so it is never
+      // client-readable.") -- querying it through the normal RLS-scoped
+      // `supabase` client silently returns zero rows, no error, for every
+      // real user. Found 2026-09-01 while live-verifying this feature: the
+      // banner never appeared despite real queued/retry rows existing.
+      // Reading it via the service-role client (server-only, never reaches
+      // the client bundle) is safe here specifically because we only do so
+      // *after* `brand` above was already resolved through the RLS-scoped
+      // client -- brands_select_member already proved this brandId belongs
+      // to the current user's workspace, so this isn't a new IDOR surface.
+      // We still only surface a derived boolean + a coarse error code to
+      // callers, never the raw job rows (attempts, source, available_at),
+      // respecting the original intent of that migration's RLS choice.
+      const serviceRoleSupabase = createSupabaseServiceRoleClient();
+
       const [
         { count: promptCount },
         { count: competitorCount },
@@ -539,7 +556,7 @@ export async function getEmptyStateConfig(brandId: string | null): Promise<Empty
         // same bare zeros either way. Ordered by created_at so the most
         // *recent* pending job's error wins over an older one if several
         // prompts are all mid-retry at once.
-        supabase
+        serviceRoleSupabase
           .from("check_jobs")
           .select("last_error_code, created_at")
           .eq("brand_id", brandId)
